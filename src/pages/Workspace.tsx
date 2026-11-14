@@ -13,10 +13,10 @@ import { runOCR, processDocument, fileToBase64 } from '../lib/api'
 import { buildWorkflowContext } from '../workflow/router'
 
 const workflowMeta: Array<{ id: WorkflowId; name: string; description: string; icon: typeof Bot }> = [
-  { id: 'receipt', name: 'Receipt', description: 'Extract & categorise', icon: ReceiptText },
-  { id: 'invoice', name: 'Invoice', description: 'Validate invoices & SST', icon: WalletCards },
-  { id: 'bank-reconciliation', name: 'Bank reconciliation', description: 'Match statement entries', icon: Landmark },
-  { id: 'reporting', name: 'Reporting', description: 'Analyse & deliver', icon: BarChart3 },
+  { id: 'receipt', name: 'SST Accounting', description: 'SST & e-Invoice admin', icon: ReceiptText },
+  { id: 'invoice', name: 'Monthly Accounts', description: 'Full set monthly accounts', icon: WalletCards },
+  { id: 'bank-reconciliation', name: 'Bank Reconciliation', description: 'Bank & cash reconciliation', icon: Landmark },
+  { id: 'reporting', name: 'Management Analysis', description: 'Reports & analysis', icon: BarChart3 },
 ]
 
 export function Workspace({ workflow, setWorkflow, openReports }: { workflow: WorkflowId; setWorkflow: (workflow: WorkflowId) => void; openReports: () => void }) {
