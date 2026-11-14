@@ -54,6 +54,18 @@ Extract the following information and return as JSON:
     "reviewRequirements": ["Monthly reconciliation mandatory"],
     "taxHandling": "Standard SST rules apply"
   },
+  "confidence": {
+    "profile": 0.95,
+    "glCodes": 0.85,
+    "vendors": 0.90,
+    "policies": 0.80
+  },
+  "confidence_reasoning": {
+    "profile": "Business name and industry clearly visible. SST registration number partially obscured.",
+    "glCodes": "Chart of accounts clearly listed with codes and names. Some account types inferred from naming.",
+    "vendors": "Vendor list complete with categories. GL code assignments based on category patterns.",
+    "policies": "Approval thresholds not explicitly stated. Inferred from transaction patterns."
+  },
   "questions": [
     {
       "id": "q1",
@@ -63,6 +75,65 @@ Extract the following information and return as JSON:
     }
   ]
 }
+
+## Confidence Scoring for Configuration Extraction
+
+For each section (profile, glCodes, vendors, policies), calculate confidence:
+
+**Start at 1.0 and DEDUCT:**
+
+### Profile Confidence
+- Business name clearly visible: 0 (no deduction)
+- Business name unclear or missing: -0.30
+- Industry explicitly stated: 0
+- Industry inferred from context: -0.15
+- Industry missing: -0.25
+- Business type clearly stated: 0
+- Business type inferred: -0.10
+- Currency explicitly stated: 0
+- Currency inferred (from amounts): -0.05
+- Tax registration clearly visible: 0
+- Tax registration partially visible: -0.20
+- Tax registration missing: -0.30
+
+### GL Codes Confidence
+- All codes clearly listed: 0
+- Some codes partially obscured: -0.10
+- Many codes unclear: -0.25
+- Account types explicitly stated: 0
+- Account types inferred from names: -0.10
+- Account types guessed from patterns: -0.20
+- Standard numbering system used: 0
+- Non-standard numbering: -0.05
+- Complete chart of accounts: 0
+- Partial chart (missing sections): -0.15
+
+### Vendors Confidence
+- Vendor names clearly listed: 0
+- Some vendor names unclear: -0.15
+- Categories explicitly assigned: 0
+- Categories inferred from vendor name: -0.10
+- Categories guessed from context: -0.20
+- GL codes explicitly mapped: 0
+- GL codes inferred from category: -0.10
+- GL codes guessed: -0.25
+- Tax codes visible: 0
+- Tax codes inferred: -0.15
+- Tax codes missing: -0.20
+
+### Policies Confidence
+- Policies explicitly documented: 0
+- Policies inferred from patterns: -0.20
+- Policies guessed: -0.35
+- Approval thresholds clearly stated: 0
+- Approval thresholds inferred: -0.25
+- Approval thresholds missing: -0.40
+- Review requirements documented: 0
+- Review requirements inferred: -0.15
+- Tax handling explicitly stated: 0
+- Tax handling inferred: -0.20
+
+## Analysis Instructions
 
 Analyze the document carefully:
 - For chart of accounts: extract all account codes, names, and types
@@ -78,7 +149,9 @@ IMPORTANT: If anything is unclear, ambiguous, or missing from the document, add 
 - Unclear approval thresholds
 
 Be thorough and accurate. Use standard accounting conventions.
-Only ask questions when you genuinely need clarification - don't ask for information that can be reasonably inferred.`
+Only ask questions when you genuinely need clarification - don't ask for information that can be reasonably inferred.
+
+Provide detailed confidence reasoning that explains what was clearly visible vs what was inferred or guessed.`
 
 async function callModel(prompt: string, documentContent: string, apiKey: string): Promise<string> {
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -291,6 +364,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       fileName,
       configs,
       questions: parsed.questions || [],
+      confidence: parsed.confidence || null,
+      confidence_reasoning: parsed.confidence_reasoning || null,
       summary: {
         glCodesCount: parsed.glCodes?.length || 0,
         vendorsCount: parsed.vendors?.length || 0,

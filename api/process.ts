@@ -115,16 +115,118 @@ ${clientContext.policies}
 
 ---
 
-Process this ${task} according to the rules above. Return your analysis as JSON with this structure:
-{
-  "extracted_fields": { ... },
-  "categorization": { ... },
-  "warnings": [...],
-  "confidence": 0.0-1.0,
-  "reasoning": "Brief explanation of your analysis"
-}
+Process this ${task} and return your analysis as JSON.
 
-Be precise with financial data. If you're uncertain about any field, set confidence lower and explain in reasoning.`
+## Confidence Scoring Criteria
+
+You MUST calculate confidence based on these specific factors:
+
+**Start at 1.0 (100%) and DEDUCT for each issue:**
+
+### Data Quality (-0.05 to -0.20 each)
+- OCR errors or unclear text: -0.10
+- Missing required fields (date, amount, vendor): -0.15 each
+- Illegible or corrupted data: -0.20
+- Handwritten vs printed (handwritten less reliable): -0.05
+
+### Vendor Matching (-0.05 to -0.30)
+- Exact match to approved vendor list: 0 (no deduction)
+- Fuzzy match (similar name, possible typo): -0.10
+- New vendor not in approved list: -0.20
+- Multiple possible vendor matches: -0.15
+- Vendor name completely unclear: -0.30
+
+### GL Code Assignment (-0.05 to -0.25)
+- Clear match to vendor's default GL code: 0 (no deduction)
+- Category matches but GL code inferred: -0.10
+- New category not in vendor mapping: -0.15
+- Ambiguous category (could be multiple GL codes): -0.20
+- No matching GL code in client's chart: -0.25
+
+### Amount Validation (-0.10 to -0.30)
+- Amount clearly visible and matches line items: 0 (no deduction)
+- Subtotal/tax/total don't add up correctly: -0.15
+- Amount partially obscured or unclear: -0.20
+- Currency mismatch with client profile: -0.25
+- Amount seems unreasonable for category: -0.30
+
+### Date/Period Issues (-0.05 to -0.20)
+- Date clearly visible: 0 (no deduction)
+- Date format ambiguous (DD/MM vs MM/DD): -0.10
+- Date outside current accounting period: -0.15
+- Date completely missing or illegible: -0.20
+
+### Tax/SST Issues (-0.05 to -0.25)
+- Tax code clearly visible and matches vendor: 0 (no deduction)
+- Tax amount present but rate unclear: -0.10
+- Tax calculation doesn't match visible rate: -0.15
+- Missing tax information when required: -0.20
+- Tax-exempt claim without evidence: -0.25
+
+### Policy Compliance (-0.10 to -0.30)
+- Within approval thresholds: 0 (no deduction)
+- Exceeds approval threshold but approver known: -0.05
+- Exceeds approval threshold, approver unknown: -0.15
+- Violates client policy (e.g., personal expense): -0.30
+- Missing required documentation: -0.20
+
+### Duplicate/Suspicious Items (-0.10 to -0.40)
+- No duplicate detected: 0 (no deduction)
+- Possible duplicate (same vendor, similar amount, close date): -0.15
+- Likely duplicate (same vendor, same amount, same date): -0.30
+- Suspicious pattern (unusual timing, round numbers): -0.20
+- Clear duplicate: -0.40
+
+## Required JSON Structure
+
+Return your analysis in this exact format:
+
+\`\`\`json
+{
+  "extracted_fields": {
+    "vendor": "Vendor name",
+    "date": "YYYY-MM-DD",
+    "amount": 123.45,
+    "tax_amount": 12.35,
+    "subtotal": 111.10,
+    "currency": "MYR",
+    "category": "Office Supplies",
+    "gl_code": "6300",
+    "tax_code": "SR",
+    "reference": "INV-2024-001",
+    "description": "Brief description"
+  },
+  "confidence": 0.85,
+  "confidence_breakdown": {
+    "data_quality": 0.95,
+    "vendor_match": 1.00,
+    "gl_assignment": 0.90,
+    "amount_validation": 0.85,
+    "date_period": 1.00,
+    "tax_compliance": 0.90,
+    "policy_compliance": 1.00,
+    "duplicate_check": 1.00
+  },
+  "warnings": [
+    "Warning message if any issues detected"
+  ],
+  "reasoning": "Detailed explanation of your analysis, including what you checked and why you assigned this confidence score. Reference specific factors from the scoring criteria."
+}
+\`\`\`
+
+## Important Notes
+
+- Be conservative with confidence - when in doubt, score lower
+- Always provide specific reasoning that references the scoring criteria
+- If confidence < 0.70, you MUST include warnings
+- Check for duplicates against the OCR data patterns
+- Validate that amounts add up (subtotal + tax = total)
+- Verify vendor exists in approved mappings
+- Ensure GL code exists in client's chart of accounts
+- Check tax codes match vendor's typical pattern
+- Flag any policy violations clearly
+
+Be precise with financial data. Accuracy is more important than speed.`
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -203,12 +305,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     parsed = { raw: result.content }
   }
 
+  // Extract confidence breakdown if available
+  const confidenceBreakdown = parsed.confidence_breakdown || null
+
   return res.status(200).json({
     success: true,
     task,
     result: parsed,
     model_used: result.model,
     confidence: result.confidence,
+    confidence_breakdown: confidenceBreakdown,
     attempts
   })
 }

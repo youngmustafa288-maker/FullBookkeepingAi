@@ -31,6 +31,18 @@ export function Configuration() {
     vendors: '',
     policies: ''
   })
+  const [confidence, setConfidence] = useState<Record<ConfigType, number>>({
+    profile: 0,
+    glCodes: 0,
+    vendors: 0,
+    policies: 0
+  })
+  const [confidenceReasoning, setConfidenceReasoning] = useState<Record<ConfigType, string>>({
+    profile: '',
+    glCodes: '',
+    vendors: '',
+    policies: ''
+  })
   const [questions, setQuestions] = useState<AIQuestion[]>([])
   const [preview, setPreview] = useState<{ type: ConfigType; content: string } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -99,6 +111,28 @@ export function Configuration() {
           ...prev,
           ...data.configs
         }))
+
+        // Store confidence scores if available
+        if (data.confidence) {
+          setConfidence(prev => ({
+            ...prev,
+            profile: data.confidence.profile || 0,
+            glCodes: data.confidence.glCodes || 0,
+            vendors: data.confidence.vendors || 0,
+            policies: data.confidence.policies || 0
+          }))
+        }
+
+        // Store confidence reasoning if available
+        if (data.confidence_reasoning) {
+          setConfidenceReasoning(prev => ({
+            ...prev,
+            profile: data.confidence_reasoning.profile || '',
+            glCodes: data.confidence_reasoning.glCodes || '',
+            vendors: data.confidence_reasoning.vendors || '',
+            policies: data.confidence_reasoning.policies || ''
+          }))
+        }
 
         // If AI has questions, add them
         if (data.questions && data.questions.length > 0) {
@@ -244,7 +278,19 @@ export function Configuration() {
           <div className="config-extracted__items">
             {configs.profile && (
               <div className="config-extracted__item">
-                <span>Business Profile</span>
+                <div>
+                  <span>Business Profile</span>
+                  {confidence.profile > 0 && (
+                    <div className="config-confidence">
+                      <span className={`confidence-badge confidence-badge--${confidence.profile >= 0.8 ? 'high' : confidence.profile >= 0.6 ? 'medium' : 'low'}`}>
+                        {Math.round(confidence.profile * 100)}% confident
+                      </span>
+                      {confidenceReasoning.profile && (
+                        <p className="confidence-reasoning">{confidenceReasoning.profile}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <button className="button button--ghost" onClick={() => setPreview({ type: 'profile', content: configs.profile })}>
                   <Eye size={14} /> Review
                 </button>
@@ -252,7 +298,19 @@ export function Configuration() {
             )}
             {configs.glCodes && (
               <div className="config-extracted__item">
-                <span>Chart of Accounts</span>
+                <div>
+                  <span>Chart of Accounts</span>
+                  {confidence.glCodes > 0 && (
+                    <div className="config-confidence">
+                      <span className={`confidence-badge confidence-badge--${confidence.glCodes >= 0.8 ? 'high' : confidence.glCodes >= 0.6 ? 'medium' : 'low'}`}>
+                        {Math.round(confidence.glCodes * 100)}% confident
+                      </span>
+                      {confidenceReasoning.glCodes && (
+                        <p className="confidence-reasoning">{confidenceReasoning.glCodes}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <button className="button button--ghost" onClick={() => setPreview({ type: 'glCodes', content: configs.glCodes })}>
                   <Eye size={14} /> Review
                 </button>
@@ -260,7 +318,19 @@ export function Configuration() {
             )}
             {configs.vendors && (
               <div className="config-extracted__item">
-                <span>Vendor Mappings</span>
+                <div>
+                  <span>Vendor Mappings</span>
+                  {confidence.vendors > 0 && (
+                    <div className="config-confidence">
+                      <span className={`confidence-badge confidence-badge--${confidence.vendors >= 0.8 ? 'high' : confidence.vendors >= 0.6 ? 'medium' : 'low'}`}>
+                        {Math.round(confidence.vendors * 100)}% confident
+                      </span>
+                      {confidenceReasoning.vendors && (
+                        <p className="confidence-reasoning">{confidenceReasoning.vendors}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <button className="button button--ghost" onClick={() => setPreview({ type: 'vendors', content: configs.vendors })}>
                   <Eye size={14} /> Review
                 </button>
@@ -268,7 +338,19 @@ export function Configuration() {
             )}
             {configs.policies && (
               <div className="config-extracted__item">
-                <span>Policies & Rules</span>
+                <div>
+                  <span>Policies & Rules</span>
+                  {confidence.policies > 0 && (
+                    <div className="config-confidence">
+                      <span className={`confidence-badge confidence-badge--${confidence.policies >= 0.8 ? 'high' : confidence.policies >= 0.6 ? 'medium' : 'low'}`}>
+                        {Math.round(confidence.policies * 100)}% confident
+                      </span>
+                      {confidenceReasoning.policies && (
+                        <p className="confidence-reasoning">{confidenceReasoning.policies}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <button className="button button--ghost" onClick={() => setPreview({ type: 'policies', content: configs.policies })}>
                   <Eye size={14} /> Review
                 </button>
