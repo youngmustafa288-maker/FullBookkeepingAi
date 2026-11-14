@@ -1,22 +1,9 @@
 import { useState, useRef, type DragEvent } from 'react'
-import { UploadCloud, FileText, TrendingUp, Users, Settings, ShieldCheck, AlertTriangle, CheckCircle2, Loader2, Eye, X } from 'lucide-react'
+import { UploadCloud, ShieldCheck, AlertTriangle, CheckCircle2, Loader2, Eye, X, MessageCircle, HelpCircle } from 'lucide-react'
 import { clients } from '../data/mockData'
 import { useApp } from '../context/AppContext'
-import { Badge } from '../components/Badge'
 
 type ConfigType = 'glCodes' | 'vendors' | 'policies' | 'profile'
-
-interface ConfigSummary {
-  type: ConfigType
-  title: string
-  description: string
-  icon: typeof FileText
-  stats: {
-    count?: number
-    lastUpdated?: string
-    details?: string
-  }
-}
 
 interface UploadedFile {
   name: string
@@ -24,6 +11,14 @@ interface UploadedFile {
   type: string
   status: 'uploading' | 'analyzing' | 'done' | 'error'
   message?: string
+}
+
+interface AIQuestion {
+  id: string
+  question: string
+  context: string
+  answered: boolean
+  answer?: string
 }
 
 export function Configuration() {
@@ -36,54 +31,9 @@ export function Configuration() {
     vendors: '',
     policies: ''
   })
+  const [questions, setQuestions] = useState<AIQuestion[]>([])
   const [preview, setPreview] = useState<{ type: ConfigType; content: string } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  // Mock data - in production this comes from Supabase
-  const summaries: ConfigSummary[] = [
-    {
-      type: 'profile',
-      title: 'Business Profile',
-      description: 'Company details and structure',
-      icon: FileText,
-      stats: {
-        lastUpdated: configs.profile ? '2 days ago' : 'Not configured',
-        details: configs.profile ? 'Retail business, SST registered' : undefined
-      }
-    },
-    {
-      type: 'glCodes',
-      title: 'Chart of Accounts',
-      description: 'GL codes extracted from previous records',
-      icon: TrendingUp,
-      stats: {
-        count: configs.glCodes ? 45 : 0,
-        lastUpdated: configs.glCodes ? '2 days ago' : 'Not configured',
-        details: configs.glCodes ? 'Assets, Liabilities, Revenue, Expenses' : undefined
-      }
-    },
-    {
-      type: 'vendors',
-      title: 'Vendor Mappings',
-      description: 'Vendors and their default categories',
-      icon: Users,
-      stats: {
-        count: configs.vendors ? 23 : 0,
-        lastUpdated: configs.vendors ? '1 day ago' : 'Not configured',
-        details: configs.vendors ? 'Office supplies, software, services' : undefined
-      }
-    },
-    {
-      type: 'policies',
-      title: 'Policies & Rules',
-      description: 'Approval thresholds and requirements',
-      icon: Settings,
-      stats: {
-        lastUpdated: configs.policies ? '5 days ago' : 'Not configured',
-        details: configs.policies ? 'RM 5,000 approval threshold' : undefined
-      }
-    }
-  ]
 
   const handleFiles = async (files: FileList | File[]) => {
     const fileArray = Array.from(files)
@@ -120,16 +70,13 @@ export function Configuration() {
     for (let i = 0; i < validFiles.length; i++) {
       const file = validFiles[i]
       
-      // Update status to analyzing
       setUploading(prev => prev.map((u, idx) => 
         idx === i ? { ...u, status: 'analyzing' } : u
       ))
 
       try {
-        // Convert file to base64
         const base64 = await fileToBase64(file)
         
-        // Call API to analyze
         const response = await fetch('/api/generate-config', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -148,11 +95,15 @@ export function Configuration() {
 
         const data = await response.json()
         
-        // Update configs with AI-generated content
         setConfigs(prev => ({
           ...prev,
           ...data.configs
         }))
+
+        // If AI has questions, add them
+        if (data.questions && data.questions.length > 0) {
+          setQuestions(prev => [...prev, ...data.questions])
+        }
 
         setUploading(prev => prev.map((u, idx) => 
           idx === i ? { 
@@ -187,7 +138,14 @@ export function Configuration() {
     handleFiles(e.dataTransfer.files)
   }
 
+  const answerQuestion = (questionId: string, answer: string) => {
+    setQuestions(prev => prev.map(q => 
+      q.id === questionId ? { ...q, answered: true, answer } : q
+    ))
+  }
+
   const configuredCount = Object.values(configs).filter(c => c).length
+  const unansweredQuestions = questions.filter(q => !q.answered)
 
   return (
     <div className="page-stack">
@@ -255,57 +213,71 @@ export function Configuration() {
         )}
       </section>
 
-      {/* Generated Configs */}
+      {/* AI Questions */}
+      {unansweredQuestions.length > 0 && (
+        <section className="config-questions">
+          <div className="config-questions__header">
+            <HelpCircle size={20} />
+            <div>
+              <h3>AI has {unansweredQuestions.length} question{unansweredQuestions.length > 1 ? 's' : ''}</h3>
+              <p>AI needs clarification on some items from your documents</p>
+            </div>
+          </div>
+          <div className="config-questions__list">
+            {unansweredQuestions.map(q => (
+              <QuestionCard key={q.id} question={q} onAnswer={(answer) => answerQuestion(q.id, answer)} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Extracted Summary */}
       {configuredCount > 0 && (
-        <section className="config-summary-grid">
-          {summaries.map(summary => {
-            const Icon = summary.icon
-            const isConfigured = Boolean(configs[summary.type])
-            
-            return (
-              <article key={summary.type} className={`config-card ${isConfigured ? 'config-card--configured' : ''}`}>
-                <div className="config-card__header">
-                  <div className="config-card__icon">
-                    <Icon size={20} />
-                  </div>
-                  <div className="config-card__title">
-                    <h3>{summary.title}</h3>
-                    <p>{summary.description}</p>
-                  </div>
-                </div>
-
-                <div className="config-card__stats">
-                  {summary.stats.count !== undefined && (
-                    <div className="config-stat">
-                      <strong>{summary.stats.count}</strong>
-                      <span>{summary.type === 'glCodes' ? 'GL codes' : 'vendors'}</span>
-                    </div>
-                  )}
-                  <div className="config-stat">
-                    <strong>{summary.stats.lastUpdated}</strong>
-                    <span>Last updated</span>
-                  </div>
-                  {summary.stats.details && (
-                    <div className="config-stat config-stat--full">
-                      <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
-                        {summary.stats.details}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {isConfigured && (
-                  <button 
-                    className="button button--ghost config-card__button"
-                    onClick={() => setPreview({ type: summary.type, content: configs[summary.type] })}
-                  >
-                    <Eye size={15} />
-                    Review
-                  </button>
-                )}
-              </article>
-            )
-          })}
+        <section className="config-extracted">
+          <div className="config-extracted__header">
+            <CheckCircle2 size={20} />
+            <div>
+              <h3>Configuration extracted</h3>
+              <p>Review what AI extracted from your documents</p>
+            </div>
+          </div>
+          <div className="config-extracted__items">
+            {configs.profile && (
+              <div className="config-extracted__item">
+                <span>Business Profile</span>
+                <button className="button button--ghost" onClick={() => setPreview({ type: 'profile', content: configs.profile })}>
+                  <Eye size={14} /> Review
+                </button>
+              </div>
+            )}
+            {configs.glCodes && (
+              <div className="config-extracted__item">
+                <span>Chart of Accounts</span>
+                <button className="button button--ghost" onClick={() => setPreview({ type: 'glCodes', content: configs.glCodes })}>
+                  <Eye size={14} /> Review
+                </button>
+              </div>
+            )}
+            {configs.vendors && (
+              <div className="config-extracted__item">
+                <span>Vendor Mappings</span>
+                <button className="button button--ghost" onClick={() => setPreview({ type: 'vendors', content: configs.vendors })}>
+                  <Eye size={14} /> Review
+                </button>
+              </div>
+            )}
+            {configs.policies && (
+              <div className="config-extracted__item">
+                <span>Policies & Rules</span>
+                <button className="button button--ghost" onClick={() => setPreview({ type: 'policies', content: configs.policies })}>
+                  <Eye size={14} /> Review
+                </button>
+              </div>
+            )}
+          </div>
+          <button className="button button--primary" style={{ marginTop: '16px', width: '100%', justifyContent: 'center' }}>
+            Approve All
+          </button>
         </section>
       )}
 
@@ -313,7 +285,7 @@ export function Configuration() {
         <ShieldCheck size={17} />
         <span>
           <strong>AI learns from your records.</strong> Upload previous accounting exports and AI will extract GL codes, vendor mappings, and business rules automatically. 
-          Every approved transaction in the Review Queue also teaches the AI more about your business.
+          If anything is unclear, AI will ask you for clarification. Every approved transaction in the Review Queue also teaches the AI more about your business.
         </span>
       </div>
 
@@ -323,7 +295,7 @@ export function Configuration() {
             <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
               <div>
                 <span className="eyebrow">AI-generated configuration</span>
-                <h2>{summaries.find(s => s.type === preview.type)?.title}</h2>
+                <h2>{preview.type === 'profile' ? 'Business Profile' : preview.type === 'glCodes' ? 'Chart of Accounts' : preview.type === 'vendors' ? 'Vendor Mappings' : 'Policies & Rules'}</h2>
               </div>
               <button className="icon-button" onClick={() => setPreview(null)}>
                 <X size={18} />
@@ -351,6 +323,39 @@ export function Configuration() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function QuestionCard({ question, onAnswer }: { question: AIQuestion; onAnswer: (answer: string) => void }) {
+  const [answer, setAnswer] = useState('')
+
+  return (
+    <div className="config-question-card">
+      <div className="config-question-card__content">
+        <div className="config-question-card__icon">
+          <MessageCircle size={16} />
+        </div>
+        <div>
+          <p className="config-question-card__context">{question.context}</p>
+          <p className="config-question-card__question">{question.question}</p>
+        </div>
+      </div>
+      <div className="config-question-card__answer">
+        <input
+          type="text"
+          value={answer}
+          onChange={e => setAnswer(e.target.value)}
+          placeholder="Type your answer..."
+        />
+        <button 
+          className="button button--primary"
+          onClick={() => { onAnswer(answer); setAnswer('') }}
+          disabled={!answer.trim()}
+        >
+          Answer
+        </button>
+      </div>
     </div>
   )
 }

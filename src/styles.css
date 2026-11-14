@@ -375,6 +375,35 @@ label textarea { min-height: 110px; resize: vertical; }
 .config-learning-note { display: flex; gap: 12px; align-items: flex-start; padding: 16px 20px; background: var(--blue-soft); border-radius: 12px; color: var(--blue); font-size: 13px; line-height: 1.5; }
 .config-learning-note strong { display: block; margin-bottom: 2px; }
 
+/* AI Questions Section */
+.config-questions { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
+.config-questions__header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+.config-questions__header svg { color: var(--amber); flex-shrink: 0; margin-top: 2px; }
+.config-questions__header h3 { font-size: 15px; margin-bottom: 4px; }
+.config-questions__header p { font-size: 13px; color: var(--muted); }
+.config-questions__list { display: flex; flex-direction: column; gap: 12px; }
+
+.config-question-card { background: var(--canvas); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+.config-question-card__content { display: flex; gap: 12px; margin-bottom: 12px; }
+.config-question-card__icon { width: 28px; height: 28px; display: grid; place-items: center; background: var(--amber-soft); color: var(--amber); border-radius: 6px; flex-shrink: 0; }
+.config-question-card__context { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+.config-question-card__question { font-size: 14px; font-weight: 500; line-height: 1.5; }
+.config-question-card__answer { display: flex; gap: 8px; }
+.config-question-card__answer input { flex: 1; padding: 10px 14px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; background: var(--paper); }
+.config-question-card__answer input:focus { outline: none; border-color: #76a89d; }
+.config-question-card__answer button { padding: 10px 16px; font-size: 12px; }
+
+/* Extracted Summary Section */
+.config-extracted { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
+.config-extracted__header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+.config-extracted__header svg { color: #76a89d; flex-shrink: 0; margin-top: 2px; }
+.config-extracted__header h3 { font-size: 15px; margin-bottom: 4px; }
+.config-extracted__header p { font-size: 13px; color: var(--muted); }
+.config-extracted__items { display: flex; flex-direction: column; gap: 8px; }
+.config-extracted__item { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--canvas); border: 1px solid var(--line); border-radius: 8px; }
+.config-extracted__item span { font-size: 14px; font-weight: 500; }
+.config-extracted__item button { padding: 6px 12px; font-size: 11px; }
+
 /* Config chat modal */
 .config-chat-modal { width: 90%; max-width: 700px; max-height: 90vh; display: flex; flex-direction: column; }
 .config-chat-modal header { display: flex; justify-content: space-between; align-items: flex-start; padding: 24px 24px 16px; border-bottom: 1px solid var(--line); }

@@ -53,7 +53,15 @@ Extract the following information and return as JSON:
     ],
     "reviewRequirements": ["Monthly reconciliation mandatory"],
     "taxHandling": "Standard SST rules apply"
-  }
+  },
+  "questions": [
+    {
+      "id": "q1",
+      "question": "What is the primary business activity?",
+      "context": "Business Profile",
+      "answered": false
+    }
+  ]
 }
 
 Analyze the document carefully:
@@ -62,8 +70,15 @@ Analyze the document carefully:
 - For financial statements: infer business type, industry, and structure
 - For bank statements: identify banking relationships
 
+IMPORTANT: If anything is unclear, ambiguous, or missing from the document, add questions to the "questions" array. Examples:
+- Missing business type or industry
+- Unclear vendor categorization
+- Ambiguous GL code assignments
+- Missing tax registration details
+- Unclear approval thresholds
+
 Be thorough and accurate. Use standard accounting conventions.
-If information is unclear or missing, make reasonable assumptions based on the business type.`
+Only ask questions when you genuinely need clarification - don't ask for information that can be reasonably inferred.`
 
 async function callModel(prompt: string, documentContent: string, apiKey: string): Promise<string> {
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -275,6 +290,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       success: true,
       fileName,
       configs,
+      questions: parsed.questions || [],
       summary: {
         glCodesCount: parsed.glCodes?.length || 0,
         vendorsCount: parsed.vendors?.length || 0,
