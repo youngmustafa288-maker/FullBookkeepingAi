@@ -35,17 +35,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    return { error: error?.message ?? null }
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      return { error: error?.message ?? null }
+    } catch (err) {
+      console.error('Sign in error:', err)
+      return { error: err instanceof Error ? err.message : 'Failed to connect to authentication service' }
+    }
   }
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: fullName } }
-    })
-    return { error: error?.message ?? null }
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name: fullName } }
+      })
+      return { error: error?.message ?? null }
+    } catch (err) {
+      console.error('Sign up error:', err)
+      return { error: err instanceof Error ? err.message : 'Failed to connect to authentication service' }
+    }
   }
 
   const signOut = async () => {
