@@ -26,7 +26,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [vendorRules, setVendorRules] = useState(initialVendorRules)
   const [glCodes, setGlCodes] = useState(initialGlCodes)
 
-  const approveReview = (id: string) => {
+  const approveReview = async (id: string) => {
     const item = reviews.find((review) => review.id === id)
     if (!item) return
     const now = new Date().toISOString()
@@ -48,6 +48,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
       },
       ...current,
     ])
+
+    // Learn from this approval - extract vendor/GL mappings
+    try {
+      const vendor = item.party || item.fields.vendor as string
+      const glCode = item.fields.glCode as string || item.fields['GL code'] as string
+      const category = item.fields.category as string || item.fields.Category as string
+      
+      if (vendor && glCode) {
+        // Call API to learn from this approval
+        await fetch('/api/generate-config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mode: 'learn',
+            configType: 'vendors',
+            clientId: item.clientId,
+            approvedReviews: [{
+              vendor,
+              category: category || 'Uncategorized',
+              glCode,
+              amount: item.amount,
+              description: item.fields.description as string || item.reference
+            }]
+          })
+        })
+      }
+    } catch (error) {
+      console.error('Failed to learn from approval:', error)
+      // Don't block the approval if learning fails
+    }
   }
 
   const rejectReview = (id: string, note = 'Rejected during full review.') => {

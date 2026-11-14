@@ -26,8 +26,8 @@ export function Shell({ page, setPage, onSignOut, children }: { page: PageId; se
   const activeClient = clients.find((client) => client.id === activeClientId) ?? clients[0]
   const pending = reviews.filter((review) => review.clientId === activeClientId).length
   const title = navItems.find((item) => item.id === page)?.label ?? 'BookAI'
-  const userInitials = (user?.user_metadata?.full_name || user?.email || 'U').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
-  const userName = user?.user_metadata?.full_name || user?.email || 'User'
+  const userInitials = (user?.user_metadata?.full_name || user?.email || 'MC').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
+  const userName = user?.user_metadata?.full_name || user?.email || 'Maya Chen'
 
   const navigate = (id: PageId) => {
     setPage(id)
