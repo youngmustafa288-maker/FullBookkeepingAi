@@ -364,7 +364,7 @@ function Rules({ company, companyId, userId, glCodes, vendorRules, policies, sug
   const [policyKey, setPolicyKey] = useState('')
   const [policyValue, setPolicyValue] = useState('{}')
   const [saving, setSaving] = useState(false)
-  const handle = async (operation: () => Promise<{ error?: { message: string } | null }>, cleanup: () => void) => {
+  const handle = async (operation: () => PromiseLike<{ error?: { message: string } | null }>, cleanup: () => void) => {
     setSaving(true); onError('')
     try {
       const result = await operation()
