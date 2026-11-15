@@ -15,7 +15,7 @@ export function ReviewDrawer({ item, onClose, onApprove, onReject }: ReviewDrawe
   const approvalBlocked = Boolean(item.exception)
   return (
     <div className="drawer-backdrop" onMouseDown={onClose}>
-      <aside className="drawer" onMouseDown={(event) => event.stopPropagation()} aria-label="Review details">
+      <aside className="drawer" onMouseDown={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="Review details">
         <header className="drawer__header">
           <div>
             <span className="eyebrow">Full review</span>

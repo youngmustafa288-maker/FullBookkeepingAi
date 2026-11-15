@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, ArrowUpDown, Check, Clock3, Download, FileText, Landmark, ReceiptText, RefreshCw, WalletCards } from 'lucide-react'
+import { AlertTriangle, ArrowUpDown, Check, Clock3, Download, FileText, RefreshCw } from 'lucide-react'
 import { clients } from '../data/mockData'
 import { useApp } from '../context/AppContext'
 import { money, mytDate, relativeQueueAge } from '../lib/format'
@@ -8,7 +8,9 @@ import { ConfidenceBadge } from '../components/Badge'
 import { ReviewDrawer } from '../components/ReviewDrawer'
 import { EmptyState } from '../components/EmptyState'
 
-const workflowIcons = { receipt: ReceiptText, invoice: WalletCards, 'bank-reconciliation': Landmark }
+function partyInitials(party: string) {
+  return party.split(/\s+/).filter(Boolean).map(word => word[0]).join('').slice(0, 2).toUpperCase() || '—'
+}
 
 export function ReviewQueue() {
   const { activeClientId, reviews, approveReview, rejectReview } = useApp()
@@ -116,13 +118,12 @@ export function ReviewQueue() {
       {visible.length ? (
         <div className="queue-list">
           {visible.map((item) => {
-            const Icon = workflowIcons[item.workflow]
             const canQuickApprove = item.confidence > 90 && !item.warning && !item.exception
             const ageHours = (Date.now() - new Date(item.queuedAt).getTime()) / 3_600_000
             return (
               <article className="queue-card" key={item.id}>
                 <div className="queue-card__document">
-                  <span className="queue-card__icon"><Icon size={18} /></span>
+                  <span className="queue-card__icon" aria-label={`${item.party} identifier`}>{partyInitials(item.party)}</span>
                   <div>
                     <span>{item.workflow === 'receipt' ? 'SST' : item.workflow === 'invoice' ? 'Monthly' : 'Bank'}</span>
                     <strong>{item.party}</strong>
