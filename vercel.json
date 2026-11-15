@@ -1,0 +1,9 @@
+{
+  "functions": {
+    "api/automation.ts": { "includeFiles": "workflow/references/**" }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
