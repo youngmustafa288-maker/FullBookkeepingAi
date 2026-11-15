@@ -8,7 +8,7 @@ export const mytDate = (value: string, withTime = false) => new Intl.DateTimeFor
   day: '2-digit',
   month: 'short',
   year: 'numeric',
-  ...(withTime ? { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false } : {}),
+  ...(withTime ? { hour: '2-digit', minute: '2-digit', hour12: false } : {}),
   timeZone: 'Asia/Kuala_Lumpur',
 }).format(new Date(value))
 

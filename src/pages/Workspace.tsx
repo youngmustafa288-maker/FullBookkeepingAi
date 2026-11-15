@@ -10,7 +10,6 @@ import type { WorkflowId } from '../types'
 import { ConfidenceBadge, Badge } from '../components/Badge'
 import { money } from '../lib/format'
 import { runOCR, processDocument, fileToBase64 } from '../lib/api'
-import { buildWorkflowContext } from '../workflow/router'
 
 const workflowMeta: Array<{ id: WorkflowId; name: string; description: string; icon: typeof Bot }> = [
   { id: 'receipt', name: 'SST Accounting', description: 'SST & e-Invoice admin', icon: ReceiptText },
@@ -101,16 +100,11 @@ export function Workspace({ workflow, setWorkflow, openReports }: { workflow: Wo
             </button>
           ))}
         </div>
-        <div className="context-recipe">
-          <ShieldCheck size={18} />
-          <strong>Scoped context</strong>
-          <span>Common rules</span><ChevronRight size={12} /><span>{workflow.replace('-', ' ')}</span><ChevronRight size={12} /><span>{client.shortName} mappings</span>
-        </div>
       </aside>
 
       <section className="thread-panel">
         <div className="thread-panel__header">
-          <div><span className="workflow-symbol"><ActiveWorkflowIcon size={19} /></span><div><h3>{workflowMeta.find((item) => item.id === workflow)?.name} workflow</h3><span><i className="status-dot status-dot--connected" /> Ready · Markdown context loaded</span></div></div>
+          <div><span className="workflow-symbol"><ActiveWorkflowIcon size={19} /></span><div><h3>{workflowMeta.find((item) => item.id === workflow)?.name} workflow</h3><span><i className="status-dot status-dot--connected" /> Ready</span></div></div>
           <Badge tone="neutral">Session BKA-1027</Badge>
         </div>
 
@@ -169,8 +163,6 @@ export function Workspace({ workflow, setWorkflow, openReports }: { workflow: Wo
       <aside className="session-panel">
         <div className="session-panel__client"><span className="client-avatar" style={{ background: client.color }}>{client.shortName}</span><div><span className="eyebrow">Active client</span><strong>{client.name}</strong></div></div>
         <div className="session-stats"><div><strong>{uploaded ? 1 : 0}</strong><span>Processed</span></div><div><strong>{pending.length}</strong><span>Pending</span></div><div><strong>0</strong><span>Errors</span></div></div>
-        <section><div className="section-heading"><h3>Loaded context</h3><span>Read only</span></div><ul className="context-files"><li><CheckCircle2 size={14} />common.md</li><li><CheckCircle2 size={14} />{workflow}.md</li><li><CheckCircle2 size={14} />profile.md</li><li><CheckCircle2 size={14} />vendors.md</li><li><CheckCircle2 size={14} />gl-codes.md</li><li><CheckCircle2 size={14} />policies.md</li></ul></section>
-        <section><div className="section-heading"><h3>Hard gates</h3></div><div className="gate-list"><span><ShieldCheck size={14} />Company scope verified</span><span><ShieldCheck size={14} />Human approval required</span><span><ShieldCheck size={14} />Idempotent writes</span></div></section>
       </aside>
     </div>
   )

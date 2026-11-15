@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { AlertTriangle, ArrowDownRight, ArrowUpRight, CalendarClock, Download, Mail, MessageSquareText, RefreshCw, Send, X } from 'lucide-react'
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, CalendarClock, Download, Mail, MessageSquareText, Send, X } from 'lucide-react'
 import { clients } from '../data/mockData'
 import { useApp } from '../context/AppContext'
 import { money } from '../lib/format'
@@ -30,7 +30,7 @@ export function Reports() {
 
   return (
     <div className="page-stack reports-page">
-      <section className="page-intro page-intro--compact"><div><span className="eyebrow">October 2026</span><h2>Financial reports</h2><p>Validated live records and generated analysis for {client.name}.</p></div><div className="page-actions"><button className="button button--secondary"><RefreshCw size={16} />Refresh</button><button className="button button--primary"><Download size={16} />Download PDF</button></div></section>
+      <section className="page-intro page-intro--compact"><div><span className="eyebrow">October 2026</span><h2>Financial reports</h2><p>Validated live records and generated analysis for {client.name}.</p></div><div className="page-actions"><button className="button button--primary"><Download size={16} />Download PDF</button></div></section>
       <div className="report-controls"><div className="report-tabs">{tabs.map((item) => <button className={tab === item ? 'active' : ''} key={item} onClick={() => setTab(item)}>{item}</button>)}</div><label><span>Reporting period</span><select defaultValue="oct"><option value="oct">October 2026</option><option>September 2026</option></select></label></div>
       {tab === 'Management Analysis' ? (
         <div className="analysis-stack">
@@ -40,7 +40,7 @@ export function Reports() {
           ].map((row) => <div className={Math.abs(parseFloat(String(row[4]))) > 10 ? 'highlight' : ''} key={String(row[0])}><strong>{row[0]}</strong><span>{money(Number(row[1]))}</span><span>{money(Number(row[2]))}</span><span className={Number(row[3]) >= 0 ? 'positive' : 'negative'}>{money(Number(row[3]))}</span><span>{row[4]}</span></div>)}</div></section>
           <div className="analysis-grid">
             <section className="panel anomaly-panel"><div className="panel__header"><div><span className="eyebrow">Attention</span><h3>Anomaly flags</h3></div><Badge tone="warning">2 flags</Badge></div><div className="anomaly-list"><button><span><AlertTriangle size={17} /></span><div><strong>Older customer balance</strong><p>Kinta Hardware has been outstanding for 41 days, above the recent collection pattern.</p></div></button><button><span><AlertTriangle size={17} /></span><div><strong>Professional fees increased</strong><p>Professional fees rose RM 3,380 month on month. No cause is asserted without supporting evidence.</p></div></button></div></section>
-            <section className="panel executive-panel"><div className="panel__header"><div><span className="eyebrow">Owner-ready copy</span><h3>Executive summary</h3></div><button className="text-button"><RefreshCw size={14} />Regenerate</button></div><blockquote>October sales improved while day-to-day costs remained controlled, resulting in a stronger profit for the month. Cash collection also improved, although one older customer balance should be followed up. The business remains able to cover its near-term commitments.</blockquote><span className="analysis-label">AI-generated analysis grounded in October records</span></section>
+            <section className="panel executive-panel"><div className="panel__header"><div><span className="eyebrow">Owner-ready copy</span><h3>Executive summary</h3></div></div><blockquote>October sales improved while day-to-day costs remained controlled, resulting in a stronger profit for the month. Cash collection also improved, although one older customer balance should be followed up. The business remains able to cover its near-term commitments.</blockquote><span className="analysis-label">AI-generated analysis grounded in October records</span></section>
           </div>
           <section className="delivery-bar"><div><span className="eyebrow">Delivery</span><h3>Share after review</h3></div><div><button className="button button--secondary"><Download size={16} />PDF report</button><button className="button button--secondary" onClick={() => setModal('email')}><Mail size={16} />Email</button><button className="button button--secondary" onClick={() => setModal('whatsapp')}><MessageSquareText size={16} />WhatsApp summary</button><button className="button button--secondary" onClick={() => setModal('schedule')}><CalendarClock size={16} />Schedule</button></div></section>
         </div>

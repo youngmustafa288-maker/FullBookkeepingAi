@@ -38,7 +38,7 @@ export function Accounts() {
   }), [records, activeClientId, search, filter])
 
   return (
-    <div className="page-stack">
+    <div className="page-stack accounts-page">
       <section className="page-intro page-intro--compact">
         <div><span className="eyebrow">Live ledger view</span><h2>Accounts</h2><p>Records for {client.name}, with staged app-layer metadata.</p></div>
         <button className="button button--secondary" onClick={() => downloadCsv(`accounts-${activeClientId}.csv`, visible)}><Download size={16} />Export CSV</button>

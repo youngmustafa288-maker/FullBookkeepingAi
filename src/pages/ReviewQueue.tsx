@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, ArrowUpDown, Check, Clock3, Download, FileText, RefreshCw } from 'lucide-react'
+import { AlertTriangle, ArrowUpDown, Check, Clock3, Download, FileText } from 'lucide-react'
 import { clients } from '../data/mockData'
 import { useApp } from '../context/AppContext'
 import { money, mytDate, relativeQueueAge } from '../lib/format'
@@ -8,8 +8,11 @@ import { ConfidenceBadge } from '../components/Badge'
 import { ReviewDrawer } from '../components/ReviewDrawer'
 import { EmptyState } from '../components/EmptyState'
 
-function partyInitials(party: string) {
-  return party.split(/\s+/).filter(Boolean).map(word => word[0]).join('').slice(0, 2).toUpperCase() || '—'
+function documentEmoji(item: ReviewItem) {
+  if (item.workflow === 'bank-reconciliation') return '🏦'
+  if (/shell|petronas|fuel|diesel/i.test(item.party)) return '⛽'
+  if (/office|stationery|supplies/i.test(item.party)) return '🗂️'
+  return item.workflow === 'invoice' ? '📄' : '🧾'
 }
 
 export function ReviewQueue() {
@@ -32,10 +35,6 @@ export function ReviewQueue() {
     }, 30000)
     return () => clearInterval(interval)
   }, [])
-
-  const handleRefresh = () => {
-    setLastRefresh(new Date())
-  }
 
   const handleExportExcel = () => {
     // Create CSV content
@@ -80,7 +79,7 @@ export function ReviewQueue() {
           <span className="client-avatar" style={{ background: activeClient.color }}>{activeClient.shortName}</span>
           <span>
             <strong>{activeClient.name}</strong>
-            <small>Last updated: {lastRefresh.toLocaleTimeString()}</small>
+            <small>Auto-updated: {lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>
           </span>
         </div>
       </section>
@@ -104,10 +103,6 @@ export function ReviewQueue() {
           </select>
         </label>
         <div className="queue-toolbar__actions">
-          <button className="button button--ghost" onClick={handleRefresh} title="Refresh">
-            <RefreshCw size={14} />
-            Refresh
-          </button>
           <button className="button button--secondary" onClick={handleExportExcel} title="Export to Excel">
             <Download size={14} />
             Export Excel
@@ -123,7 +118,7 @@ export function ReviewQueue() {
             return (
               <article className="queue-card" key={item.id}>
                 <div className="queue-card__document">
-                  <span className="queue-card__icon" aria-label={`${item.party} identifier`}>{partyInitials(item.party)}</span>
+                  <span className="queue-card__icon" role="img" aria-label={`${item.party} document type`}>{documentEmoji(item)}</span>
                   <div>
                     <span>{item.workflow === 'receipt' ? 'SST' : item.workflow === 'invoice' ? 'Monthly' : 'Bank'}</span>
                     <strong>{item.party}</strong>

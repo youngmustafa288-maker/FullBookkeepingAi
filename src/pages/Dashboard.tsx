@@ -1,4 +1,4 @@
-import { ArrowRight, CheckCircle2, CircleDollarSign, FileWarning, Landmark, RefreshCw, ScanLine, Sparkles, Upload, WalletCards } from 'lucide-react'
+import { ArrowRight, CheckCircle2, CircleDollarSign, FileWarning, Landmark, ScanLine, Sparkles, Upload, WalletCards } from 'lucide-react'
 import { activities, clients } from '../data/mockData'
 import { useApp } from '../context/AppContext'
 import { money } from '../lib/format'
@@ -33,7 +33,6 @@ export function Dashboard({ navigate, startWorkflow }: { navigate: (page: PageId
     <div className="page-stack dashboard-page">
       <section className="page-intro">
         <div><span className="eyebrow">11 October 2026 · MYT</span><h2>Good morning, Maya.</h2><p>Here is the operating picture for {client.name}.</p></div>
-        <button className="button button--secondary"><RefreshCw size={16} />Refresh records</button>
       </section>
 
       <section className="metric-grid">
@@ -47,7 +46,7 @@ export function Dashboard({ navigate, startWorkflow }: { navigate: (page: PageId
 
       <section className="dashboard-grid">
         <div className="panel activity-panel">
-          <div className="panel__header"><div><span className="eyebrow">Live operations</span><h3>Recent workflow activity</h3></div><button className="text-button"><RefreshCw size={14} />Refresh</button></div>
+          <div className="panel__header"><div><span className="eyebrow">Live operations</span><h3>Recent workflow activity</h3></div></div>
           <div className="activity-list">
             {clientActivities.length ? clientActivities.map((activity) => {
               const Icon = workflowIcon[activity.workflow]
