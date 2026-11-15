@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { runDocumentOcr } from '../server/ocr'
 
 /**
  * Document Analysis API
@@ -285,42 +286,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Handle different file types
     if (mimeType.includes('pdf') || mimeType.includes('image')) {
-      // OCR the document first
-      const ocrResponse = await fetch(`${process.env.LM_STUDIO_URL || 'http://localhost:1234'}/v1/chat/completions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: process.env.LM_STUDIO_OCR_MODEL || 'llava-llama-3',
-          messages: [
-            {
-              role: 'system',
-              content: 'Extract all text from this accounting document. Preserve structure and formatting.'
-            },
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'image_url',
-                  image_url: { url: `data:${mimeType};base64,${documentBase64}` }
-                },
-                {
-                  type: 'text',
-                  text: 'Extract all text from this document.'
-                }
-              ]
-            }
-          ],
-          temperature: 0.1,
-          max_tokens: 4000
-        })
-      })
-
-      if (ocrResponse.ok) {
-        const ocrData = await ocrResponse.json()
-        documentContent = ocrData.choices?.[0]?.message?.content || ''
-      } else {
-        throw new Error('OCR failed')
-      }
+      const ocrResult = await runDocumentOcr(documentBase64, mimeType)
+      documentContent = ocrResult.text
     } else {
       // CSV/Excel - decode base64
       documentContent = Buffer.from(documentBase64, 'base64').toString('utf-8')

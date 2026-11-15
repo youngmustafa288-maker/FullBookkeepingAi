@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, ArrowUpDown, Check, Clock3, Download, FileText } from 'lucide-react'
+import { AlertTriangle, ArrowUpDown, Check, Clock3, Download, FileText, Fuel, Landmark, PackageOpen, ReceiptText, WalletCards } from 'lucide-react'
 import { clients } from '../data/mockData'
 import { useApp } from '../context/AppContext'
 import { money, mytDate, relativeQueueAge } from '../lib/format'
@@ -8,11 +8,11 @@ import { ConfidenceBadge } from '../components/Badge'
 import { ReviewDrawer } from '../components/ReviewDrawer'
 import { EmptyState } from '../components/EmptyState'
 
-function documentEmoji(item: ReviewItem) {
-  if (item.workflow === 'bank-reconciliation') return '🏦'
-  if (/shell|petronas|fuel|diesel/i.test(item.party)) return '⛽'
-  if (/office|stationery|supplies/i.test(item.party)) return '🗂️'
-  return item.workflow === 'invoice' ? '📄' : '🧾'
+function documentIcon(item: ReviewItem) {
+  if (item.workflow === 'bank-reconciliation') return Landmark
+  if (/shell|petronas|fuel|diesel/i.test(item.party)) return Fuel
+  if (/office|stationery|supplies/i.test(item.party)) return PackageOpen
+  return item.workflow === 'invoice' ? WalletCards : ReceiptText
 }
 
 export function ReviewQueue() {
@@ -113,12 +113,13 @@ export function ReviewQueue() {
       {visible.length ? (
         <div className="queue-list">
           {visible.map((item) => {
+            const DocumentIcon = documentIcon(item)
             const canQuickApprove = item.confidence > 90 && !item.warning && !item.exception
             const ageHours = (Date.now() - new Date(item.queuedAt).getTime()) / 3_600_000
             return (
               <article className="queue-card" key={item.id}>
                 <div className="queue-card__document">
-                  <span className="queue-card__icon" role="img" aria-label={`${item.party} document type`}>{documentEmoji(item)}</span>
+                  <span className="queue-card__icon" aria-label={`${item.party} document type`}><DocumentIcon size={17} strokeWidth={1.8} /></span>
                   <div>
                     <span>{item.workflow === 'receipt' ? 'SST' : item.workflow === 'invoice' ? 'Monthly' : 'Bank'}</span>
                     <strong>{item.party}</strong>
