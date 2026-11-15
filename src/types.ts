@@ -1,4 +1,3 @@
-import type { TaskId } from './workflow/catalog'
 export type PageId =
   | 'dashboard'
   | 'workspace'
@@ -8,9 +7,9 @@ export type PageId =
   | 'audit'
   | 'configuration'
 
-export type WorkflowId = TaskId | 'receipt' | 'invoice'
-export type RecordType = 'Purchase Invoice' | 'Sales Invoice' | 'Receipt' | 'Bank Recon'
-export type RecordStatus = 'Paid' | 'Pending' | 'Overdue' | 'Draft' | 'Reconciled'
+export type WorkflowId = 'receipt' | 'invoice' | 'bank-reconciliation' | 'reporting'
+export type RecordType = 'Purchase Invoice' | 'Sales Invoice' | 'Receipt' | 'Bank Recon' | 'Customer Receipt' | 'Supplier Payment' | 'Employee Claim' | 'Reimbursement' | 'Sales Credit' | 'Supplier Credit' | 'Customer Refund' | 'Supplier Refund' | 'Other Transaction'
+export type RecordStatus = 'Paid' | 'Pending' | 'Overdue' | 'Draft' | 'Reconciled' | 'Partial' | 'Unallocated' | 'Approved'
 
 export interface Client {
   id: string
@@ -24,6 +23,8 @@ export interface Client {
 }
 
 export interface LedgerRecord {
+  currency?: string
+  outstanding?: number
   id: string
   clientId: string
   reference: string
@@ -39,6 +40,14 @@ export interface LedgerRecord {
 }
 
 export interface ReviewItem {
+  proposalId?: string
+  evidence?: string
+  currency?: string
+  readOnly?: boolean
+  actions?: {type:string;payload:Record<string,unknown>}[]
+  explanation?: string
+  missing?: string[]
+  reviewed?: boolean
   id: string
   clientId: string
   workflow: Exclude<WorkflowId, 'reporting'>
@@ -46,7 +55,7 @@ export interface ReviewItem {
   party: string
   amount: number
   date: string
-  confidence: number
+  confidence: number | null
   queuedAt: string
   warning?: string
   exception?: boolean
@@ -56,7 +65,7 @@ export interface ReviewItem {
   fields: Record<string, string | number>
 }
 
-export type AuditAction = 'Approved' | 'Rejected' | 'Edited' | 'Posted' | 'Voided' | 'Failed'
+export type AuditAction = 'Approved' | 'Rejected' | 'Edited' | 'Posted' | 'Voided' | 'Failed' | 'Submitted' | 'Allocated' | 'Matched'
 
 export interface AuditEvent {
   id: string

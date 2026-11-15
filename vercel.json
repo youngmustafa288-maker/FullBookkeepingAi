@@ -13,6 +13,12 @@
     "api/process.ts": {
       "includeFiles": "workflow/references/**",
       "maxDuration": 60
+    },
+    "api/generate-config.ts": {
+      "maxDuration": 60
+    },
+    "api/ocr.ts": {
+      "maxDuration": 60
     }
   }
 }

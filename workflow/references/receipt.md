@@ -1,6 +1,3 @@
-# Expense receipts
+# Receipt, expense and other transaction reasoning
 
-Extract receipt lines, merchant, date, currency, payment method and evidence. Separate business/private portions, cost versus asset and tax treatment. Check whether a supplier bill already represents this purchase before recognising an expense. For cash purchases record one economic event with its settlement. Preserve missing evidence and unclear OCR for review.
-
-## Required result
-Return extracted_fields, warnings, missing_evidence, proposed_links, proposed_journals and confidence as structured JSON. Use null for unsupported fields. Keep status draft and external_posted false. Load the shared controls and selected client context before applying this task.
+Distinguish expense evidence from customer collections, staff claims/reimbursements, supplier payments, deposits, transfers, charges, loans and owner/director balances using the source and saved client context. Check linked invoices and cash records to avoid duplicate expenses. Use appropriate actual client GL codes; ambiguous categories stay pending with a focused question. Capture mixed business/private portions and missing FX/evidence. Review SST only when applicable and supported; never enable e-Invoice processing. Preserve the original receipt and stage proposals in the existing review queue.

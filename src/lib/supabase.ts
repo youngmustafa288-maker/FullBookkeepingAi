@@ -1,4 +1,2 @@
 import {createClient} from '@supabase/supabase-js'
-const url=import.meta.env.VITE_SUPABASE_URL
-const key=import.meta.env.VITE_SUPABASE_ANON_KEY
-export const supabase=createClient(url||'https://placeholder.supabase.co',key||'local-workspace-placeholder',{auth:{persistSession:true}})
+export const supabase=createClient(import.meta.env.VITE_SUPABASE_URL||'https://placeholder.supabase.co',import.meta.env.VITE_SUPABASE_ANON_KEY||'local-workspace-placeholder')

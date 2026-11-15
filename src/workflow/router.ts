@@ -1,7 +1,43 @@
 import common from '../../workflow/references/common.md?raw'
-import { workflows } from './catalog'
+import receipt from '../../workflow/references/receipt.md?raw'
+import invoice from '../../workflow/references/invoice.md?raw'
+import bankReconciliation from '../../workflow/references/bank-reconciliation.md?raw'
+import reporting from '../../workflow/references/reporting.md?raw'
 import type { WorkflowId } from '../types'
-const files=import.meta.glob('../../workflow/references/*.md',{query:'?raw',import:'default',eager:true}) as Record<string,string>
-export interface ClientContextFiles { profile:string;vendors:string;glCodes:string;policies:string }
-export function buildWorkflowContext(task:WorkflowId,client:ClientContextFiles){const id=task==='invoice'?'purchase-invoice':task==='receipt'?'expense-receipt':task;if(!workflows.some(w=>w.id===id))throw Error('Unsupported task');return [common,files[`../../workflow/references/${id}.md`],JSON.stringify(client)].join('\n\n')}
-export function routeWorkflow(input:{task_type?:string;filename?:string;fields?:Record<string,unknown>}):WorkflowId|'unsupported_task'{if(input.task_type&&workflows.some(w=>w.id===input.task_type))return input.task_type as WorkflowId;return 'unsupported_task'}
+
+const taskReferences: Record<WorkflowId, string> = {
+  receipt,
+  invoice,
+  'bank-reconciliation': bankReconciliation,
+  reporting,
+}
+
+export interface ClientContextFiles {
+  profile: string
+  vendors: string
+  glCodes: string
+  policies: string
+}
+
+/** Builds the only context shape accepted by the server-side execution adapter. */
+export function buildWorkflowContext(task: WorkflowId, client: ClientContextFiles) {
+  return [
+    '# Common rules', common,
+    `# Selected task: ${task}`, taskReferences[task],
+    '# Client profile', client.profile,
+    '# Approved vendor mappings', client.vendors,
+    '# Allowed GL codes', client.glCodes,
+    '# Client policies', client.policies,
+  ].join('\n\n---\n\n')
+}
+
+export function routeWorkflow(input: { task_type?: string; filename?: string; fields?: Record<string, unknown> }): WorkflowId | 'unsupported_task' {
+  const explicit = input.task_type?.toLowerCase()
+  if (explicit && explicit in taskReferences) return explicit as WorkflowId
+  const signal = `${input.filename ?? ''} ${Object.keys(input.fields ?? {}).join(' ')}`.toLowerCase()
+  if (signal.includes('bank') || signal.includes('statement') || signal.includes('recon')) return 'bank-reconciliation'
+  if (signal.includes('invoice') || signal.includes('sst') || signal.includes('due_date')) return 'invoice'
+  if (signal.includes('receipt') || signal.includes('merchant')) return 'receipt'
+  if (signal.includes('trial_balance') || signal.includes('profit') || signal.includes('report')) return 'reporting'
+  return 'unsupported_task'
+}

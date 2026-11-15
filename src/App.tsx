@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BookkeepingProvider, localMode, useBookkeeping } from './bookkeeping/context'
+import {BookkeepingProvider,useBookkeeping,localMode} from './bookkeeping/context'
 import { AppProvider } from './context/AppContext'
 import { useAuth } from './context/AuthContext'
 import { AuthPage } from './pages/AuthPage'
@@ -16,7 +16,7 @@ import { Loader2 } from 'lucide-react'
 
 function BookAIApp() {
   const { user, loading, signOut } = useAuth()
-  const book = useBookkeeping()
+  const book=useBookkeeping()
   const [page, setPage] = useState<PageId>('dashboard')
   const [workflow, setWorkflow] = useState<WorkflowId>('invoice')
 
@@ -32,8 +32,8 @@ function BookAIApp() {
     return <AuthPage />
   }
 
-  if (!book.ready) return <p>Loading company records…</p>
-  if (!book.clients.length) return <div className="panel" style={{padding:40}}><h2>Company setup required</h2><p>{book.error || 'Assign a company to this user in company_users before opening the workspace.'}</p></div>
+  if(!book.ready)return <p>Loading company records…</p>
+  if(!book.clients.length)return <div className="panel" style={{padding:32}}><h2>Company records unavailable</h2><p>{book.error||"Assign your user to a company before continuing."}</p></div>
 
   const startWorkflow = (next: WorkflowId) => {
     setWorkflow(next)

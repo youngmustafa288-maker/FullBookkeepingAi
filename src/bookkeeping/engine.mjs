@@ -1,3 +1,4 @@
+import {validateCaseActions,resolveActionReferences} from './cases.mjs'
 // All monetary calculations use integer minor units (sen for MYR).
 export const financialKinds = ['sales-invoice','purchase-invoice','customer-receipt','supplier-payment','expense-receipt','employee-claim','employee-reimbursement','sales-credit','purchase-credit','customer-refund','supplier-refund','miscellaneous'];
 export function minor(value) {
@@ -7,7 +8,7 @@ export function minor(value) {
   if (!Number.isSafeInteger(n)) throw Error('Amount is too large.'); return n;
 }
 export const major = n => (n/100).toFixed(2);
-export const newState = () => ({version:1,revision:0,documents:[],allocations:[],reversals:[],goods:[],bankRows:[],matches:[],audit:[],contexts:{profile:'',vendors:'',glCodes:'',policies:''},closedThrough:null});
+export const newState = () => ({version:1,revision:0,cases:[],documents:[],allocations:[],reversals:[],goods:[],bankRows:[],matches:[],audit:[],contexts:{profile:'',vendors:'',glCodes:'',policies:''},closedThrough:null});
 function assert(ok,msg) { if(!ok) throw Error(msg); }
 function date(value) { assert(/^\d{4}-\d{2}-\d{2}$/.test(value||'') && !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0,10)===value,'Use a valid YYYY-MM-DD date.'); return value; }
 function required(value,label) { assert(typeof value==='string' && value.trim().length>0 && value.length<=200,`${label} is required (maximum 200 characters).`); return value.trim(); }
@@ -37,12 +38,39 @@ export function summary(s,asOf='9999-12-31',currency='MYR') {
  return {receivables:total('sales-invoice'),payables:total('purchase-invoice'),unallocatedReceipts:total('customer-receipt'),unallocatedPayments:total('supplier-payment'),staffPayables:total('employee-claim'),unallocatedReimbursements:total('employee-reimbursement'),pending:s.documents.filter(d=>d.status==='pending').length,disputes:s.goods.filter(g=>!g.resolved && g.faulty>0).length,unmatched:s.bankRows.filter(r=>!s.matches.some(m=>m.bankId===r.id)).length};
 }
 export function applyAction(previous,action,actor='Bookkeeper',now=new Date().toISOString()) {
- const s=structuredClone(previous); s.reversals ||= []; const {type,payload:p={}}=action;
+ let s=structuredClone(previous); s.reversals ||= []; s.cases ||= []; const {type,payload:p={}}=action;
  const id=required(action.id,'Action ID');
  if(s.audit.some(e=>e.id===id)) return previous; // Stable action id reused on network retry.
  const effective=p.date || now.slice(0,10);
- if(!['context','reopen','close','reject'].includes(type)) { date(effective); assert(!s.closedThrough||effective>s.closedThrough,'This period is closed. Reopen it with a reason first.'); }
- if(type==='document') {
+ if(!['context','reopen','close','reject','stage-case','edit-case','reject-case'].includes(type)) { date(effective); assert(!s.closedThrough||effective>s.closedThrough,'This period is closed. Reopen it with a reason first.'); }
+ if(type==='stage-case') {
+  const actions=validateCaseActions(p.actions||[]);
+  const fields=p.fields&&typeof p.fields==='object'?p.fields:{};
+  s.cases.push({id,workflow:['receipt','invoice','bank-reconciliation','reporting'].includes(p.workflow)?p.workflow:'invoice',message:String(p.message||''),actions,fields:structuredClone(fields),warnings:Array.isArray(p.warnings)?p.warnings.map(String):[],missing:Array.isArray(p.missing)?p.missing.map(String):[],blocked:Boolean(p.blocked)||!actions.length||(Array.isArray(p.missing)&&p.missing.length>0),reviewed:false,status:'pending',confidence:typeof p.confidence==='number'?Math.min(100,Math.max(0,p.confidence)):null,evidence:String(p.evidence||''),filename:String(p.filename||'Chat proposal'),mimeType:String(p.mimeType||''),queuedAt:now});
+ } else if(type==='edit-case') {
+  const c=s.cases.find(c=>c.id===p.caseId);assert(c?.status==='pending','Only a pending case can be corrected.');
+  if(p.fields&&typeof p.fields==='object'){
+   for(const [key,value] of Object.entries(p.fields))if(['reference','party','date','dueDate','amount','currency','category','bankAccount','evidence','note','originalId'].includes(key)){
+    c.fields[key]=String(value);
+    const first=c.actions.find(a=>a.type==='document');if(first)first.payload[key]=String(value);
+    if(key==='evidence')c.evidence=String(value);
+   }
+  }
+  if(p.reviewed===true){assert(c.actions.length>0,'Ask AI to prepare a supported action before approval.');c.reviewed=true;c.blocked=false;}
+ } else if(type==='reject-case') {
+  const c=s.cases.find(c=>c.id===p.caseId);assert(c?.status==='pending','Only a pending case can be rejected.');c.status='rejected';c.rejectionReason=required(p.reason,'Rejection reason');
+ } else if(type==='approve-case') {
+  const c=s.cases.find(c=>c.id===p.caseId);assert(c?.status==='pending','This case is no longer pending.');assert(!c.blocked&&c.actions.length>0,'Resolve the flagged questions in full review before approval.');
+  const actions=validateCaseActions(c.actions),caseId=c.id,evidence=c.evidence;
+  for(let i=0;i<actions.length;i++){
+   const a=actions[i],payload=resolveActionReferences(a.payload,caseId,i),actionId=`${caseId}:action:${i}`;
+   if(a.type==='document')payload.evidence=payload.evidence||evidence;
+   s=applyAction(s,{id:actionId,type:a.type,payload},actor,now);
+   if(a.type==='document')s=applyAction(s,{id:`${actionId}:approved`,type:'approve',payload:{documentId:actionId}},actor,now);
+  }
+  const saved=s.cases.find(c=>c.id===caseId);saved.status='approved';saved.approvedBy=actor;saved.approvedAt=now;
+  s.revision=previous.revision;
+ } else if(type==='document') {
   assert(financialKinds.includes(p.kind),'Unsupported document type.');
   const reference=required(p.reference,'Reference'), party=required(p.party,'Customer / supplier / other party');
   const currency=String(p.currency||'MYR').toUpperCase(); assert(/^[A-Z]{3}$/.test(currency),'Use a three-letter currency code.');
@@ -71,7 +99,10 @@ export function applyAction(previous,action,actor='Bookkeeper',now=new Date().to
   d.status='approved';d.approvedBy=actor;
  } else if(type==='edit') {
   const d=s.documents.find(d=>d.id===p.documentId);assert(d?.status==='pending','Only pending documents can be edited.');
-  const allowed=['evidence','note','category','bankAccount'];for(const key of allowed)if(p[key]!==undefined)d[key]=String(p[key]);
+  const allowed=['reference','party','date','dueDate','currency','evidence','note','category','bankAccount','originalId'];for(const key of allowed)if(p[key]!==undefined)d[key]=String(p[key]);
+  if(p.amount!==undefined){d.amount=minor(p.amount);assert(d.amount>0,'Amount must be positive.');}
+  required(d.reference,'Reference');required(d.party,'Counterparty');date(d.date);if(d.dueDate)date(d.dueDate);assert(/^[A-Z]{3}$/.test(d.currency),'Use a three-letter currency code.');assert(!s.closedThrough||d.date>s.closedThrough,'Document date is in a closed period.');
+  assert(!s.documents.some(other=>other.id!==d.id&&other.status!=='rejected'&&other.kind===d.kind&&other.party.toLowerCase()===d.party.toLowerCase()&&other.reference.toLowerCase()===d.reference.toLowerCase()&&other.currency===d.currency),'Duplicate document identity after correction.');
  } else if(type==='reject') {
   const d=s.documents.find(d=>d.id===p.documentId);assert(d?.status==='pending','Only pending documents can be rejected.');d.status='rejected';d.note=required(p.reason,'Rejection reason');
  } else if(type==='allocate') {
@@ -114,6 +145,7 @@ export function applyAction(previous,action,actor='Bookkeeper',now=new Date().to
   assert(['profile','vendors','glCodes','policies'].includes(p.slot),'Invalid context slot.');assert(typeof p.content==='string'&&p.content.length<=524288,'Context is too large.');s.contexts[p.slot]=p.content;
  } else if(type==='close') {
   date(p.date);assert(!s.closedThrough||p.date>s.closedThrough,'Select a later close date.');required(p.reason,'Close review reference');
+  assert(!s.cases.some(c=>c.status==='pending'),'Resolve review cases before closing.');
   assert(!s.documents.some(d=>d.status==='pending'&&d.date<=p.date),'Resolve pending documents before closing.');
   assert(!s.goods.some(g=>!g.resolved&&g.date<=p.date),'Resolve goods claims before closing.');
   assert(!s.bankRows.some(r=>r.date<=p.date&&!s.matches.some(m=>m.bankId===r.id)),'Resolve unmatched bank rows before closing.');

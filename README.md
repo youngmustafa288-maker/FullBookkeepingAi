@@ -1,54 +1,55 @@
-# BookAI Malaysian Bookkeeping Workflows
+# BookAI — Restored Original AI Workspace
 
-This upgrade separates customer invoices, collections, supplier bills, supplier payments, expense receipts, employee claims/reimbursements, goods inspection, faulty-goods claims, credits/refunds, bank matching, AR/AP review, SST review and month-end/report exports. It includes 16 focused Markdown task instructions in eight groups. No MyInvois/e-Invoice integration is enabled.
+Release: `bookai-original-ai-workspace-r2` (also available at `/version.json` after deployment).
 
-## Run locally
+This revision restores the original drag-and-drop workspace, AI chat composer, client summary, Review Queue, side-by-side review drawer, Accounts table, Audit Log and AI Client Configuration. The original four workflow choices remain. The sixteen bookkeeping subtask guides are internal references; they are not sixteen workflow buttons or manual transaction screens. E-Invoice integration is excluded.
 
-Use Node.js 22 or later.
+## What changed
 
-```sh
-npm ci
-npm run dev
-```
+- Upload documents by drag/drop or the attachment button. Multi-file batches are processed sequentially, with up to 20 files and a 3 MB limit per file. PDF, JPG, PNG, CSV, XLSX and text are supported by the configured source extraction path.
+- AI uses the selected workflow's instructions, stronger case-decision guidance, reviewed client context and actual available company records. The conversation supports explaining faulty goods, partial payments, overpayments, credits, returns, refunds and other transactions without changing screens.
+- The assistant returns conversational answers and linked proposed actions. These go into the existing Review Queue. An upload result is no longer replaced with a seeded demo review item.
+- The restored review drawer shows the original source alongside editable proposal fields. Missing evidence and questions remain visible. A reviewer must explicitly resolve/document blockers. Unsupported proposals without actions cannot be approved.
+- Approved cases apply atomically through deterministic bookkeeping controls. If any linked action fails, no partial document/settlement changes are saved. Cases can link newly proposed invoice/payment records internally without exposing extra menus.
+- Actual approved operational records appear in the restored Accounts table with original currency, amount and remaining balance. Activity appears in the restored Audit Log. Approval is distinct from external ledger posting, which is not connected.
+- Client Configuration restores file import, AI clarification questions and Configure with AI dialogs for profile, chart of accounts, mappings and policies. AI output remains draft until the reviewer approves and saves it. Saved context stays scoped to that company.
+- Static sample report claims were replaced with supported operational source summaries. Full TB/P&L/balance sheet/cash flow still require the actual ledger and supporting information; the application does not manufacture balanced financial statements.
 
-Local mode is the default. It bypasses cloud sign-in, starts with empty operational records for three sample companies, and saves each company's records separately in this browser. It does not connect to a bank, external ledger or tax portal. Use Reports → Workspace backup to export the full state. Browser data can be lost if site data is cleared; use cloud mode for shared durable records. Original uploads and AI processing require cloud configuration; manual documents and evidence references work locally.
+## Existing deployment setup
 
-## Cloud setup on the existing Vercel/Supabase stack
+1. Replace the existing application source with the contents of this archive. Keep the existing `.git` directory and actual environment/secrets. Do not put the archive or an extra nested project folder inside the deployed source directory.
+2. Keep migrations 001–005 if already applied. Apply only `supabase/migrations/202610110006_evidence_document_formats.sql` for this revision: it keeps evidence private and allows CSV, XLSX and text attachments. It does not delete or reset bookkeeping records. For a new database, apply all migrations 001–006 in order. For an older deployment without 004–005, apply those before 006.
+3. Ensure the authenticated user's `public.users` record and authorised `company_users` relationships already exist. The client master is the real `companies` table; this revision does not invent or auto-create live companies.
+4. Set browser `VITE_BOOKKEEPING_MODE=cloud`, `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. Set server-only `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `OPENROUTER_API_KEY`, and the supported `BOOKKEEPING_MODEL` selected for the deployment. Never prefix private keys with `VITE_`.
+5. Configure `GEMINI_API_KEY` for PDF/image OCR or the existing LM Studio adapter for supported images. CSV/XLSX/text imports are parsed directly. Legacy XLS should be exported as XLSX or CSV. Large workbooks must be split without losing supporting control totals.
+6. Use Client Configuration to review and save all four context slots. Use explicit unknown/none notes where appropriate; do not invent policies to make the setup appear complete.
+7. Build and deploy through the existing Git/Vercel project. Verify the source commit, configured root directory and production branch. `/version.json` must show `bookai-original-ai-workspace-r2`.
 
-1. Apply migrations in filename order. For an existing project with migrations 001–003 already applied, apply only 004–005. Migration 004 adds company-scoped operational state with server-only compare-and-swap writes. Migration 005 creates a private immutable-original evidence bucket.
-2. Ensure each authenticated user has a `public.users` row, and assign authorised company IDs in `company_users`. Existing company rows remain the client master; new client onboarding is not included here. Do not use sample company IDs for live records.
-3. Set `VITE_BOOKKEEPING_MODE=cloud`, browser Supabase URL/anon key, and server-only Supabase URL/anon key/service-role key. See `.env.example`. Never prefix service-role or AI provider secrets with `VITE_`.
-4. Set `OPENROUTER_API_KEY` and a supported `BOOKKEEPING_MODEL` for AI draft analysis. Configure Gemini OCR or the existing LM Studio adapter if using image/PDF extraction. Vite alone does not run Vercel `/api` functions: deploy this source to your existing Vercel project or use Vercel's local function runner.
-5. In Client configuration, save the actual company profile, counterparty mappings, GL codes and policies. The server loads these saved values and exactly one selected task file. An explicit “none configured” note is permitted; unsupported classifications still require review.
-6. Run the checks below, then deploy using the existing project settings. No live deployment, real bank action, tax submission or external ledger posting was performed during this upgrade.
+Vite's local dev server alone does not run Vercel `/api` functions. Use the existing Vercel deployment or its local function runner for authenticated AI calls. This revision has not been pushed to your application repository or deployed to your live website by ChatGPT.
 
-## Use the workflows
+## Local demonstration mode
 
-- Stage an invoice/payment/expense; approve it after checking the evidence. Invoice recognition and cash documents remain separate.
-- Allocate approved receipts/payments to the same party and currency. Partial allocations and multiple documents per payment are supported. Excess stays unallocated. Underpayments remain outstanding.
-- For a paid invoice with a later credit, release the relevant allocation amount, then approve the linked credit. Record any refund against the released cash balance. Releases retain dates and history; they do not create cash movements.
-- Inspect goods separately. Accepted and faulty units must equal delivered units. Faulty units are quarantined operationally; reporting a fault does not alter the invoice. Link an approved credit/refund or replacement evidence to resolve the claim.
-- Record employee claims once, then allocate employee reimbursements against those claims.
-- Import normalised single-account/currency statement rows. Validate opening + movements = closing. Confirm exact cash-record matches. Repeated or ambiguous amounts remain for review. The simple CSV input uses four unquoted columns; it is not a native parser for every Malaysian bank format.
-- In Reports, choose an as-of date for invoice/payment balances and aging. Amounts remain in their original currencies; dashboard totals show MYR only. Export documents, allocations, allocation releases, current goods claims, bank matches and audit data.
-- Month-end locks are operational locks. A reviewer must confirm source completeness and actual GL/control reconciliations; locking does not certify statutory accounts.
+`VITE_BOOKKEEPING_MODE=local` is an explicit browser-only test mode with empty sample company workspaces; it does not replace cloud sign-in by default. Existing browser operational state is retained under the same per-client keys. Live AI/source extraction requires a real authenticated company; the app does not pretend an offline assistant succeeded. Browser-only state is not automatically transferred to Supabase.
 
-## Current boundary
+## Controls and boundaries
 
-Implemented: operational document approval, remaining balances, dated allocations/releases, refund and credit caps, goods claims, duplicate identity checks, exact bank cash matching, audit actions, operational period locks, browser persistence, authenticated company persistence, private evidence upload and task-specific AI proposals.
+The deterministic engine preserves integer-sen arithmetic, duplicate identities, same-party/currency allocations, partial settlements, overpayment balances, credit/refund caps, dated allocation releases, historical balance validation, faulty-goods evidence, unique bank cash matches and operational locks. Proposal creation does not approve or post its actions. Case approval cannot execute configuration writes, bank payments, tax filings or external GL posting.
 
-SST review, AR/AP statement review and month-end accounting are instruction-led review/handoff workflows. Full P&L, balance sheet, TB, inventory costing, payroll computation, FX conversion, automatic native-bank CSV parsing, grouped bank settlements and external accounting-system posting are not implemented. Bank row matching alone is not a complete bank-to-GL reconciliation. Proposed journals require the client's actual chart/ledger and human review.
+Existing workspace data and client context are retained. New review cases are stored in the same company-scoped workspace JSON and use the existing server-only revision guard. Original attachments remain in private storage and are opened through short-lived signed URLs. A generated facsimile is never shown as the original evidence.
 
-Do not run real financial records through local sample companies or treat an AI confidence value as an approval. Live cloud storage/AI/database permissions must be verified in the target deployment.
+Simple bank cash matching is available; complete bank-to-GL reconciliation, grouped/net settlement automation, native bank-specific import adapters, inventory valuation and full statutory accounts still require their proper source systems/review. SST reasoning requires the relevant effective official rules and client facts. This revision does not add e-Invoicing.
 
 ## Validation
 
+Use Node.js 24.15 or later in the Node 24 series (the tested runtime is 24.22) and run:
+
 ```sh
+npm ci
 npm test
 npm run build
 npm run check:server
 ```
 
-The regression suite covers exact sen arithmetic, partial/batched invoice allocation, cross-party/currency blocks, employee reimbursement, duplicate imports, evidence gates, faulty goods → credit → refund, historical releases/backdated credit protection, bank statement arithmetic, unique bank matching and operational period controls.
+All 36 tests pass. The regression tests cover financial controls and atomic review cases. A DOM interaction test exercises original four-workflow navigation, upload-to-review staging, editable review approval, accounts/audit updates, and AI configuration drafting followed by explicit approval. CSV/XLSX import tests read real generated workbooks. AI replies/authentication are mocked in automated interaction tests; no live provider or production database action was executed.
 
-All 23 bookkeeping regression tests, the TypeScript client build and server type checks pass. Cloud integrations and database migrations were not executed against a live account. Interactive browser QA was unavailable because the managed preview relay was unavailable.
+Browser visual QA remains unverified because the managed preview relay is unavailable in the build environment. The original layout files and styles were restored, and client/server compilation and functional interaction checks pass.

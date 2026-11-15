@@ -1,6 +1,3 @@
-# Supplier bills
+# Invoice and settlement reasoning within the existing workspace
 
-Capture supplier invoice and due dates, item quantity, unit price, tax, currency and original document reference. Compare purchase order, goods receipt or service acceptance where available. Identify shortages, mismatched prices and faulty goods without automatically reducing the liability. Record accepted supported credits separately. Never record the supplier payment as a second expense.
-
-## Required result
-Return extracted_fields, warnings, missing_evidence, proposed_links, proposed_journals and confidence as structured JSON. Use null for unsupported fields. Keep status draft and external_posted false. Load the shared controls and selected client context before applying this task.
+Use the client context and current open items to distinguish sales invoices, supplier bills, customer receipts, supplier payments, credits, refunds and goods claims. Ask which side of the business the document represents when ambiguous. Keep all cases in the existing invoice/monthly-accounts conversation. Apply the case-decision rules for partial payments, overpayments, paid invoices with later credits, faulty goods, replacements, supplier/customer statements and duplicate recognition. Link actual existing IDs rather than inventing invoices or settlement evidence. Prepare supported allocations/adjustments for human review. Do not execute a bank payment or claim an external ledger posting. For monthly close/report requests, require actual ledger and schedules rather than deriving full accounts from uploaded bills.

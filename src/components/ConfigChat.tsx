@@ -1,3 +1,4 @@
+import {apiPost} from '../lib/api'
 import { useState, useRef, useEffect } from 'react'
 import { Bot, Send, X, Loader2, Sparkles } from 'lucide-react'
 import { useApp } from '../context/AppContext'
@@ -48,35 +49,25 @@ export function ConfigChat({ configType, existingConfig, onSave, onClose }: Conf
 
     try {
       // Call API to generate/update config
-      const response = await fetch('/api/generate-config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mode: 'conversation',
-          configType,
-          clientId: activeClientId,
-          conversation: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })),
-          existingConfig
-        })
+      const data = await apiPost('generate-config', {
+        mode: 'conversation', configType, clientId: activeClientId,
+        conversation: [...messages, userMessage].map(m => ({role:m.role,content:m.content})),
+        draftContext: {[configType]: existingConfig}
       })
 
-      if (!response.ok) throw new Error('Failed to generate')
-
-      const data = await response.json()
-      
       // Show AI response
       const assistantMessage: Message = {
         role: 'assistant',
-        content: data.markdown,
+        content: data.message || data.markdown || 'Please clarify the company information.',
         timestamp: new Date()
       }
       setMessages(prev => [...prev, assistantMessage])
-      setGeneratedMarkdown(data.markdown)
+      if(data.markdown)setGeneratedMarkdown(data.markdown)
 
     } catch (error) {
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: "Sorry, I encountered an error. Could you try rephrasing that?",
+        content: error instanceof Error ? error.message : 'Configuration analysis failed. Saved settings were not changed.',
         timestamp: new Date()
       }])
     } finally {
@@ -176,7 +167,7 @@ export function ConfigChat({ configType, existingConfig, onSave, onClose }: Conf
         <footer>
           {generatedMarkdown && (
             <button className="button button--primary" onClick={() => onSave(generatedMarkdown)}>
-              Save Configuration
+              Use this draft
             </button>
           )}
           <button className="button button--ghost" onClick={onClose}>

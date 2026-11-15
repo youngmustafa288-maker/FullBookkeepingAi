@@ -1,3 +1,4 @@
+import {useBookkeeping,localMode} from '../bookkeeping/context'
 import {
   BarChart3, Bell, BookOpenCheck, Bot, ChevronDown, ClipboardCheck, FileBarChart,
   LayoutDashboard, LogOut, Menu, PanelLeftClose, ReceiptText, Search, Settings2, TableProperties,
@@ -20,14 +21,15 @@ const navItems: Array<{ id: PageId; label: string; icon: typeof LayoutDashboard 
 
 export function Shell({ page, setPage, onSignOut, children }: { page: PageId; setPage: (page: PageId) => void; onSignOut: () => void; children: ReactNode }) {
   const { clients, activeClientId, setActiveClientId, reviews } = useApp()
+  const book = useBookkeeping()
   const { user } = useAuth()
   const [clientOpen, setClientOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const activeClient = clients.find((client) => client.id === activeClientId) ?? clients[0]
   const pending = reviews.filter((review) => review.clientId === activeClientId).length
   const title = navItems.find((item) => item.id === page)?.label ?? 'BookAI'
-  const userInitials = (user?.user_metadata?.full_name || user?.email || 'LB').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
-  const userName = user?.user_metadata?.full_name || user?.email || 'Local bookkeeper'
+  const userInitials = (user?.user_metadata?.full_name || user?.email || 'BK').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
+  const userName = user?.user_metadata?.full_name || user?.email || 'Bookkeeper'
 
   const navigate = (id: PageId) => {
     setPage(id)
@@ -79,7 +81,7 @@ export function Shell({ page, setPage, onSignOut, children }: { page: PageId; se
         </div>
       </aside>
 
-      <div className="content-shell">
+      <div className={`content-shell ${page === 'workspace' ? 'content-shell--workspace' : ''}`}>
         <header className="topbar">
           <div className="topbar__title"><button className="mobile-menu" onClick={() => setMobileOpen(true)}><Menu size={20} /></button><h1>{title}</h1></div>
           <button className="breadcrumb-pill" onClick={() => setClientOpen((open) => !open)}><i style={{ background: activeClient.color }} />{activeClient.name}<ChevronDown size={14} /></button>
@@ -89,7 +91,7 @@ export function Shell({ page, setPage, onSignOut, children }: { page: PageId; se
             <span className="user-avatar user-avatar--top">{userInitials}</span>
           </div>
         </header>
-        <main className={page === 'workspace' ? 'main main--workspace' : 'main'}>{children}</main>
+        <div className="runtime-note">{localMode ? 'Local demonstration workspace · this browser only' : 'Company workspace'} · Approval records operational entries; external ledger posting is not connected.</div>{book.error&&<div className="notice notice--warning" role="alert" style={{margin:12}}>{book.error}</div>}<main className={page === 'workspace' ? 'main main--workspace' : 'main'}>{children}</main>
       </div>
     </div>
   )

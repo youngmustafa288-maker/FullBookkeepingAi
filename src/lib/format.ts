@@ -1,10 +1,10 @@
-export const money = (value: number, absolute = false) => new Intl.NumberFormat('en-MY', {
+export const money = (value: number, absolute = false, currency = 'MYR') => new Intl.NumberFormat('en-MY', {
   style: 'currency',
-  currency: 'MYR',
+  currency,
   minimumFractionDigits: 2,
 }).format(absolute ? Math.abs(value) : value)
 
-export const mytDate = (value: string, withTime = false) => new Intl.DateTimeFormat('en-MY', {
+export const mytDate = (value: string, withTime = false) => Number.isNaN(Date.parse(value)) ? (value || 'Unspecified') : new Intl.DateTimeFormat('en-MY', {
   day: '2-digit',
   month: 'short',
   year: 'numeric',
@@ -20,7 +20,7 @@ export const relativeQueueAge = (value: string) => {
 export const downloadCsv = <T extends object>(filename: string, rows: T[]) => {
   if (!rows.length) return
   const headers = Object.keys(rows[0]) as Array<keyof T>
-  const escape = (value: unknown) => { const raw=String(value ?? ''); const safe=/^[=+@\t\r]/.test(raw)||(/^-.+/.test(raw)&&!/^-[0-9]+(?:\.[0-9]+)?$/.test(raw)) ? "'"+raw : raw; return `"${safe.replace(/"/g, '""')}"` }
+  const escape = (value: unknown) => {const raw=String(value??'');const safe=/^[=+@\t\r]/.test(raw)||(/^-.+/.test(raw)&&!/^-[0-9]+(?:\.[0-9]+)?$/.test(raw))?"'"+raw:raw;return `"${safe.replace(/"/g,'""')}"`}
   const csv = [headers.map(escape).join(','), ...rows.map((row) => headers.map((header) => escape(row[header])).join(','))].join('\n')
   const link = document.createElement('a')
   link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
