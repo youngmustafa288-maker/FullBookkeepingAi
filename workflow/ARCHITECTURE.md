@@ -1,17 +1,5 @@
-# Markdown-first workflow architecture
+# BookAI workflow architecture
 
-The application has one workflow engine. The user selects a task, and the router constructs a narrow prompt from versioned Markdown files. This replaces the original multi-agent design while preserving strict task boundaries and human approval.
+The registry contains sixteen focused tasks in eight groups. The server authenticates the user/company, loads shared controls and one task file, and obtains saved company context. Documents are staged for human approval. The deterministic engine manages sen arithmetic, remaining balances, allocations, returns, refund caps, bank matching, idempotency and period locks.
 
-```text
-structured input
-  -> route task
-  -> common rules
-  -> one task reference
-  -> one client profile + vendors + GL codes + policies
-  -> structured proposal
-  -> persisted review
-  -> human approval
-  -> idempotent accounting write
-```
-
-Client folders are intentionally plain text so bookkeepers can review and diff context without editing code. In production, Client Configuration uploads versioned Markdown files to private storage; the database records the active file for each required context slot, and the runtime loads only those active client files.
+Local mode stores a company workspace in this browser. Cloud mode authenticates with Supabase and persists versioned company state through a server-only compare-and-swap function. Both use the same engine. Approval records the operational subledger; it does not post to an external accounting system or execute a payment. Operational reports are not full financial statements. MyInvois integration is excluded.

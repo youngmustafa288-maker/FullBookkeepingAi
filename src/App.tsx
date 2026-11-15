@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { BookkeepingProvider, localMode, useBookkeeping } from './bookkeeping/context'
 import { AppProvider } from './context/AppContext'
 import { useAuth } from './context/AuthContext'
 import { AuthPage } from './pages/AuthPage'
@@ -15,10 +16,11 @@ import { Loader2 } from 'lucide-react'
 
 function BookAIApp() {
   const { user, loading, signOut } = useAuth()
+  const book = useBookkeeping()
   const [page, setPage] = useState<PageId>('dashboard')
   const [workflow, setWorkflow] = useState<WorkflowId>('invoice')
 
-  if (loading) {
+  if (!localMode && loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f2f1eb' }}>
         <Loader2 size={32} className="spin" style={{ color: '#173b37' }} />
@@ -26,9 +28,12 @@ function BookAIApp() {
     )
   }
 
-  if (!user) {
+  if (!localMode && !user) {
     return <AuthPage />
   }
+
+  if (!book.ready) return <p>Loading company records…</p>
+  if (!book.clients.length) return <div className="panel" style={{padding:40}}><h2>Company setup required</h2><p>{book.error || 'Assign a company to this user in company_users before opening the workspace.'}</p></div>
 
   const startWorkflow = (next: WorkflowId) => {
     setWorkflow(next)
@@ -37,7 +42,7 @@ function BookAIApp() {
 
   const renderPage = () => {
     switch (page) {
-      case 'workspace': return <Workspace workflow={workflow} setWorkflow={setWorkflow} openReports={() => setPage('reports')} />
+      case 'workspace': return <Workspace key={workflow+book.activeClientId} workflow={workflow} setWorkflow={setWorkflow} openReports={() => setPage('reports')} />
       case 'accounts': return <Accounts />
       case 'reports': return <Reports />
       case 'review': return <ReviewQueue />
@@ -51,5 +56,5 @@ function BookAIApp() {
 }
 
 export default function App() {
-  return <AppProvider><BookAIApp /></AppProvider>
+  return <BookkeepingProvider><AppProvider><BookAIApp /></AppProvider></BookkeepingProvider>
 }

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Bot, Send, X, Loader2, Sparkles } from 'lucide-react'
 import { useApp } from '../context/AppContext'
-import { clients } from '../data/mockData'
+
 
 interface Message {
   role: 'user' | 'assistant'
@@ -24,7 +24,7 @@ const INITIAL_MESSAGES: Record<string, string> = {
 }
 
 export function ConfigChat({ configType, existingConfig, onSave, onClose }: ConfigChatProps) {
-  const { activeClientId } = useApp()
+  const { clients, activeClientId } = useApp()
   const client = clients.find(c => c.id === activeClientId)!
   const [messages, setMessages] = useState<Message[]>([
     { role: 'assistant', content: INITIAL_MESSAGES[configType], timestamp: new Date() }

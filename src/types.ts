@@ -1,3 +1,4 @@
+import type { TaskId } from './workflow/catalog'
 export type PageId =
   | 'dashboard'
   | 'workspace'
@@ -7,7 +8,7 @@ export type PageId =
   | 'audit'
   | 'configuration'
 
-export type WorkflowId = 'receipt' | 'invoice' | 'bank-reconciliation' | 'reporting'
+export type WorkflowId = TaskId | 'receipt' | 'invoice'
 export type RecordType = 'Purchase Invoice' | 'Sales Invoice' | 'Receipt' | 'Bank Recon'
 export type RecordStatus = 'Paid' | 'Pending' | 'Overdue' | 'Draft' | 'Reconciled'
 

@@ -1,197 +1,76 @@
-import { useRef, useState } from 'react'
-import {
-  AlertTriangle, ArrowRight, BarChart3, Bot, Check, CheckCircle2, ChevronRight, Circle,
-  Download, FileSpreadsheet, FileText, Landmark, Mail, MessageSquareText, Paperclip,
-  ReceiptText, Send, ShieldCheck, Sparkles, UploadCloud, WalletCards,
-} from 'lucide-react'
-import { useApp } from '../context/AppContext'
-import { clients } from '../data/mockData'
-import type { WorkflowId } from '../types'
-import { ConfidenceBadge, Badge } from '../components/Badge'
-import { money } from '../lib/format'
-import { runOCR, processDocument, fileToBase64 } from '../lib/api'
-
-const workflowMeta: Array<{ id: WorkflowId; name: string; description: string; icon: typeof Bot }> = [
-  { id: 'receipt', name: 'SST Accounting', description: 'SST & e-Invoice admin', icon: ReceiptText },
-  { id: 'invoice', name: 'Monthly Accounts', description: 'Full set monthly accounts', icon: WalletCards },
-  { id: 'bank-reconciliation', name: 'Bank Reconciliation', description: 'Bank & cash reconciliation', icon: Landmark },
-  { id: 'reporting', name: 'Management Analysis', description: 'Reports & analysis', icon: BarChart3 },
-]
-
-export function Workspace({ workflow, setWorkflow, openReports }: { workflow: WorkflowId; setWorkflow: (workflow: WorkflowId) => void; openReports: () => void }) {
-  const { activeClientId, reviews, approveReview } = useApp()
-  const client = clients.find((item) => item.id === activeClientId)!
-  const [uploaded, setUploaded] = useState(false)
-  const [processing, setProcessing] = useState(false)
-  const [processingStage, setProcessingStage] = useState('')
-  const [modelUsed, setModelUsed] = useState('')
-  const [message, setMessage] = useState('')
-  const [sentMessages, setSentMessages] = useState<string[]>([])
-  const [reconStep, setReconStep] = useState(1)
-  const [apiError, setApiError] = useState<string | null>(null)
-  const fileRef = useRef<HTMLInputElement>(null)
-  const pending = reviews.filter((item) => item.clientId === activeClientId)
-  const review = pending.find((item) => item.workflow === workflow) ?? pending[0]
-  const ActiveWorkflowIcon = workflowMeta.find((item) => item.id === workflow)?.icon ?? Bot
-
-  const switchWorkflow = (next: WorkflowId) => {
-    if (next === workflow) return
-    setWorkflow(next)
-    setUploaded(false)
-    setProcessing(false)
-    setSentMessages([])
-    setReconStep(1)
-  }
-
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setApiError(null)
-    setProcessing(true)
-    setProcessingStage('Running OCR on your local LM Studio…')
-
-    try {
-      // Step 1: OCR via LM Studio
-      const base64 = await fileToBase64(file)
-      const ocrResult = await runOCR(base64, file.type)
-      setProcessingStage('OCR complete. Routing to AI model…')
-
-      // Step 2: Process via model router
-      // Use demo context files for now (in production these come from Supabase)
-      const clientContext = {
-        profile: '# Demo Client\nCurrency: MYR\nTax regime: SST',
-        vendors: '# No vendor mappings configured yet',
-        glCodes: '# No GL codes configured yet',
-        policies: '# No policies configured yet'
-      }
-
-      const processResult = await processDocument({
-        task: workflow,
-        ocrData: ocrResult.data,
-        clientContext,
-        commonRules: '# Process this document accurately. Return structured JSON with confidence scores.'
-      })
-
-      setModelUsed(`${processResult.model_used} (${(processResult.confidence * 100).toFixed(0)}% confidence)`)
-      setProcessing(false)
-      setUploaded(true)
-    } catch (err) {
-      setProcessing(false)
-      setApiError(err instanceof Error ? err.message : 'Processing failed')
-    }
-  }
-
-  const sendMessage = () => {
-    if (!message.trim()) return
-    setSentMessages((current) => [...current, message.trim()])
-    setMessage('')
-  }
-
-  return (
-    <div className="workspace">
-      <aside className="workflow-rail">
-        <div className="workflow-rail__title"><span className="eyebrow">Runtime mode</span><h3>Choose workflow</h3><p>One task file is loaded at a time.</p></div>
-        <div className="workflow-list">
-          {workflowMeta.map(({ id, name, description, icon: Icon }) => (
-            <button key={id} onClick={() => switchWorkflow(id)} className={workflow === id ? 'active' : ''}>
-              <span className="workflow-list__icon"><Icon size={18} /></span>
-              <span><strong>{name}</strong><small>{description}</small></span>
-              {workflow === id ? <i className="pulse-dot" /> : <ChevronRight size={15} />}
-            </button>
-          ))}
-        </div>
-      </aside>
-
-      <section className="thread-panel">
-        <div className="thread-panel__header">
-          <div><span className="workflow-symbol"><ActiveWorkflowIcon size={19} /></span><div><h3>{workflowMeta.find((item) => item.id === workflow)?.name} workflow</h3><span><i className="status-dot status-dot--connected" /> Ready</span></div></div>
-          <Badge tone="neutral">Session BKA-1027</Badge>
-        </div>
-
-        {workflow === 'bank-reconciliation' ? (
-          <BankRecon step={reconStep} setStep={setReconStep} />
-        ) : workflow === 'reporting' ? (
-          <ReportingPreview openReports={openReports} />
-        ) : (
-          <div className="thread-body">
-            <div className="message message--workflow">
-              <span className="message__avatar"><Bot size={17} /></span>
-              <div><p>{workflow === 'receipt'
-                ? `Upload structured receipt source files for ${client.name}. I’ll extract the fields, apply approved vendor mappings, and stage every result for review.`
-                : `Upload purchase or sales invoices for ${client.name}. I’ll validate dates, line totals, SST and duplicate risk before staging a proposal.`}</p><small>Workflow runtime · now</small></div>
-            </div>
-
-            {sentMessages.map((text, index) => <div className="message message--user" key={index}><div><p>{text}</p><small>Maya · now</small></div><span className="message__avatar">MC</span></div>)}
-
-            {!uploaded && !processing && (
-              <button className="drop-zone" onClick={() => fileRef.current?.click()}>
-                <span className="drop-zone__icon"><UploadCloud size={26} /></span>
-                <strong>Drop {workflow === 'invoice' ? 'invoice' : 'receipt'} files here</strong>
-                <span>PDF, JPG or PNG · 20 MB maximum · up to 20 files</span>
-                <em>Browse files</em>
-              </button>
-            )}
-            <input ref={fileRef} hidden type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleUpload} />
-
-            {processing && <div className="processing-card"><span className="processing-orbit"><Sparkles size={20} /></span><div><strong>Processing document</strong><p>{processingStage}</p>{modelUsed && <small style={{ color: 'var(--muted)', marginTop: 4 }}>Model: {modelUsed}</small>}</div><span className="loading-dots"><i /><i /><i /></span></div>}
-
-            {apiError && <div className="notice notice--warning"><AlertTriangle size={17} /><div><strong>Processing error</strong><p>{apiError}</p><small style={{ color: 'var(--muted)' }}>Check that LM Studio is running and your tunnel is active. Also verify your OpenRouter API key in Vercel env vars.</small></div></div>}
-
-            {uploaded && review && (
-              <div className="inline-review">
-                <header><div><span className="inline-review__icon"><FileText size={19} /></span><div><span className="eyebrow">Staged proposal</span><h3>{review.filename}</h3></div></div><ConfidenceBadge value={review.confidence} /></header>
-                {review.warning && <div className="notice notice--warning"><AlertTriangle size={17} /><div><strong>Attention needed</strong><p>{review.warning}</p></div></div>}
-                <div className="inline-review__fields">
-                  {Object.entries(review.fields).map(([label, value]) => <div key={label}><span>{label}</span><strong>{value}</strong></div>)}
-                </div>
-                <div className="line-preview"><div><span>Description</span><span>Qty</span><span>Unit price</span><span>Total</span></div><div><strong>{workflow === 'invoice' ? 'Operating supplies' : review.party}</strong><span>1</span><span>{money(review.amount)}</span><strong>{money(review.amount)}</strong></div></div>
-                <footer><button className="button button--ghost">Edit proposal</button><button className="button button--primary" onClick={() => approveReview(review.id)}><Check size={16} />Approve &amp; post</button></footer>
-              </div>
-            )}
-          </div>
-        )}
-
-        {(workflow === 'receipt' || workflow === 'invoice') && (
-          <div className="composer">
-            <button className="icon-button" onClick={() => fileRef.current?.click()}><Paperclip size={18} /></button>
-            <input value={message} onChange={(event) => setMessage(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && sendMessage()} placeholder={`Ask about this ${workflow} session…`} />
-            <button className="send-button" onClick={sendMessage}><Send size={17} /></button>
-          </div>
-        )}
-      </section>
-
-      <aside className="session-panel">
-        <div className="session-panel__client"><span className="client-avatar" style={{ background: client.color }}>{client.shortName}</span><div><span className="eyebrow">Active client</span><strong>{client.name}</strong></div></div>
-        <div className="session-stats"><div><strong>{uploaded ? 1 : 0}</strong><span>Processed</span></div><div><strong>{pending.length}</strong><span>Pending</span></div><div><strong>0</strong><span>Errors</span></div></div>
-      </aside>
-    </div>
-  )
+import {useState,type FormEvent} from 'react'
+import {ArrowRight,Check,UploadCloud} from 'lucide-react'
+import type {WorkflowId} from '../types'
+import {workflows,type TaskId} from '../workflow/catalog'
+import {useBookkeeping,localMode} from '../bookkeeping/context'
+import {financialKinds,major,minor,openAmount,candidates,summary,type BookState} from '../bookkeeping/engine.mjs'
+import {downloadCsv} from '../lib/format'
+import {supabase} from '../lib/supabase'
+const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())
+const data=(e:FormEvent<HTMLFormElement>)=>Object.fromEntries(new FormData(e.currentTarget).entries()) as Record<string,string>
+const signed=(v:string)=>v.startsWith('-')?-minor(v.slice(1)):minor(v.replace(/^\+/,''))
+function Field({label,name,type='text',value,required=true}:{label:string;name:string;type?:string;value?:string;required?:boolean}){return <label><span>{label}</span><input name={name} type={type} defaultValue={value} required={required} step={type==='number'?'0.01':undefined}/></label>}
+function Select({label,name,children}:{label:string;name:string;children:React.ReactNode}){return <label><span>{label}</span><select name={name} required>{children}</select></label>}
+const label=(id:string)=>workflows.find(w=>w.id===id)?.name||id.replace(/-/g,' ')
+export function Workspace({workflow,setWorkflow,openReports}:{workflow:WorkflowId;setWorkflow:(w:WorkflowId)=>void;openReports:()=>void}){
+ const {state,act,activeClientId,clients,error,busy}=useBookkeeping()
+ const task=(workflow==='invoice'?'purchase-invoice':workflow==='receipt'?'expense-receipt':workflow) as TaskId
+ const meta=workflows.find(w=>w.id===task)||workflows[0]
+ const [notice,setNotice]=useState(''),[ai,setAi]=useState(''),[aiBusy,setAiBusy]=useState(false),[proposal,setProposal]=useState<Record<string,unknown>|null>(null),[sourceEvidence,setSourceEvidence]=useState('')
+ const run=async(type:string,payload:Record<string,unknown>)=>{setNotice('');try{await act(type,payload);setNotice('Saved. Your operational records have been updated.')}catch{/* Context displays the exact validation error. */}}
+ const approved=state.documents.filter(d=>d.status==='approved')
+ const invoices=approved.filter(d=>['sales-invoice','purchase-invoice','employee-claim'].includes(d.kind))
+ const payments=approved.filter(d=>['customer-receipt','supplier-payment','employee-reimbursement'].includes(d.kind))
+ const onDocument=(e:FormEvent<HTMLFormElement>)=>{e.preventDefault();const p=data(e);void run('document',{...p,kind:task==='adjustment'?p.kind:task})}
+ const analyse=async(e:FormEvent<HTMLFormElement>)=>{
+  e.preventDefault();const form=new FormData(e.currentTarget),p=data(e);setAiBusy(true);setAi('');setProposal(null);setSourceEvidence('')
+  try{const {data:{session}}=await supabase.auth.getSession();if(!session)throw Error('AI analysis requires cloud mode and a signed-in company. Manual workflows are available locally.')
+   let source:unknown={source_text:p.source};const file=form.get('attachment');if(file instanceof File&&file.size){if(file.size>3_000_000)throw Error('Choose a file below 3 MB.');const base64=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=reject;reader.readAsDataURL(file)});const ocr=await fetch('/api/ocr',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({companyId:activeClientId,imageBase64:base64,mimeType:file.type,filename:file.name})});const extracted=await ocr.json();if(!ocr.ok)throw Error(extracted.error);source={ocr:extracted.data,additional_text:p.source};setSourceEvidence(extracted.evidence)}
+   const res=await fetch('/api/process',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({task,companyId:activeClientId,ocrData:source})});const result=await res.json();if(!res.ok)throw Error(result.error);setAi(JSON.stringify(result.result,null,2));setProposal(result.result.extracted_fields||null)
+  }catch(err){setAi(err instanceof Error?err.message:'Analysis failed')}finally{setAiBusy(false)}
+ }
+ const groups=[...new Set(workflows.map(w=>w.group))]
+ return <div className="bk-workspace">
+  <aside className="bk-workflows"><span className="eyebrow">Bookkeeping workflows</span><h2>Choose a task</h2>{groups.map(group=><section key={group}><h3>{group}</h3>{workflows.filter(w=>w.group===group).map(w=><button key={w.id} className={task===w.id?'active':''} onClick={()=>{setWorkflow(w.id);setNotice('');setAi('')}}>{w.name}<ArrowRight size={13}/></button>)}</section>)}</aside>
+  <div className="bk-main" key={task+activeClientId}>
+   <div className="bk-mode">{localMode?'Local workspace · saved in this browser':'Company workspace · shared records'}<span>Operational subledger · external ledger posting is not connected</span></div>
+   <header><span className="eyebrow">{meta.group}</span><h2>{meta.name}</h2><p>{meta.description}</p><small>{clients.find(c=>c.id===activeClientId)?.name} · MYR forms · document currencies remain separate</small></header>
+   {error&&<div role="alert" className="notice notice--warning">{error}</div>}{notice&&<div role="status" className="notice notice--success">{notice}</div>}
+   {(financialKinds.includes(task)||task==='adjustment')&&<section className="panel bk-card"><h3>Stage a document</h3><p>Review the source before approval. Recording a payment does not execute a bank transfer.</p><form onSubmit={onDocument} className="bk-form">
+    {task==='adjustment'&&<Select label="Adjustment type" name="kind">{['sales-credit','purchase-credit','customer-refund','supplier-refund'].map(k=><option key={k}>{k}</option>)}</Select>}
+    <Field label="Purchase order reference (if used)" name="purchaseOrder" required={false}/><Field label="Document reference" name="reference"/><Field label="Customer / supplier / other party" name="party"/>
+    <Field label="Document date" name="date" type="date" value={today()}/><Field label="Due date (invoices only)" name="dueDate" type="date" required={false}/>
+    <Field label="Amount" name="amount"/><Field label="Currency" name="currency" value="MYR"/>
+    <Field label="Bank / cash account identifier" name="bankAccount" required={false}/><Field label="Client GL/category reference" name="category" required={false}/>
+    {task==='miscellaneous'&&<Select label="Cash direction" name="direction"><option value="out">Money out</option><option value="in">Money in</option></Select>}
+    {task==='adjustment'&&<Select label="Original invoice (credit) or payment (refund)" name="originalId"><option value="">Select original document</option>{approved.map(d=><option value={d.id} key={d.id}>{d.reference} · {d.party} · {d.kind}</option>)}</Select>}
+    <Field label="Source file reference / evidence location" name="evidence"/><Field label="Explanation / supporting notes" name="note" required={false}/>
+    <button className="button button--primary" disabled={busy}>Stage for review</button>
+   </form></section>}
+   {['customer-receipt','supplier-payment','employee-claim','employee-reimbursement','ar-ap-review'].includes(task)&&<section className="panel bk-card"><h3>Allocate a receipt or payment</h3><p>Each allocation consumes part of an invoice and part of a payment. Excess remains available for future allocation or refund.</p><form className="bk-form" onSubmit={e=>{e.preventDefault();void run('allocate',data(e))}}>
+    <Select label="Invoice" name="invoiceId"><option value="">Choose approved invoice</option>{invoices.map(d=><option key={d.id} value={d.id}>{d.reference} · {d.party} · {d.currency} {major(openAmount(state,d.id))} open</option>)}</Select>
+    <Select label="Receipt / payment" name="paymentId"><option value="">Choose approved money movement</option>{payments.map(d=><option key={d.id} value={d.id}>{d.reference} · {d.party} · {d.currency} {major(openAmount(state,d.id))} available</option>)}</Select>
+    <Field label="Amount to allocate" name="amount"/><Field label="Allocation date" name="date" type="date" value={today()}/><button disabled={busy} className="button button--primary">Allocate</button>
+   </form><div className="bk-list">{state.allocations.filter(a=>a.amount>state.reversals.filter(r=>r.allocationId===a.id).reduce((n,r)=>n+r.amount,0)).map(a=><div key={a.id}><span>{state.documents.find(d=>d.id===a.paymentId)?.reference} → {state.documents.find(d=>d.id===a.invoiceId)?.reference} · {major(a.amount-state.reversals.filter(r=>r.allocationId===a.id).reduce((n,r)=>n+r.amount,0))}</span><button className="button button--ghost" disabled={busy} onClick={()=>{const reason=window.prompt('Reason for releasing this allocation?');if(reason){const amount=window.prompt('Amount to release (leave blank for all remaining)', '');if(amount!==null)void run('unallocate',{allocationId:a.id,reason,amount:amount||undefined,date:today()})}}}>Release allocation</button></div>)}</div></section>}
+   {['goods-receipt','purchase-return'].includes(task)&&<><section className="panel bk-card"><h3>Record inspection / open a claim</h3><p>Faulty quantities remain outside accepted goods. A claim does not change the invoice balance.</p><form className="bk-form" onSubmit={e=>{e.preventDefault();void run('goods',data(e))}}>
+    <Select label="Supplier invoice" name="invoiceId"><option value="">Choose invoice</option>{invoices.filter(d=>d.kind==='purchase-invoice').map(d=><option key={d.id} value={d.id}>{d.reference} · {d.party}</option>)}</Select><Field label="Item / SKU" name="item"/><Field label="Goods receipt / delivery reference" name="goodsReceiptRef" required={false}/><Field label="Ordered units (if known)" name="ordered" type="number" required={false}/><Field label="Inspection date" name="date" type="date" value={today()}/><Field label="Delivered units" name="delivered" type="number"/><Field label="Accepted units" name="accepted" type="number"/><Field label="Faulty / quarantined units" name="faulty" type="number"/><Field label="Inspection / return evidence" name="evidence"/><button className="button button--primary" disabled={busy}>Save inspection</button>
+   </form></section><section className="panel bk-card"><h3>Resolve a goods claim</h3><form className="bk-form" onSubmit={e=>{e.preventDefault();void run('resolve-goods',data(e))}}><Select label="Unresolved claim" name="goodsId"><option value="">Select claim</option>{state.goods.filter(g=>!g.resolved).map(g=><option key={g.id} value={g.id}>{g.item} · {g.faulty} faulty</option>)}</Select><Select label="Resolution" name="resolution">{['replacement-received','credit-received','refund-received','claim-rejected'].map(r=><option key={r}>{r}</option>)}</Select><Select label="Approved credit/refund (required for financial resolution)" name="documentId"><option value="">Replacement / rejection: no financial document</option>{approved.filter(d=>['purchase-credit','supplier-refund'].includes(d.kind)).map(d=><option key={d.id} value={d.id}>{d.reference} · {d.kind}</option>)}</Select><Field label="Resolution evidence" name="evidence"/><button className="button button--primary" disabled={busy}>Resolve claim</button></form>
+    <div className="bk-list">{state.goods.map(g=><div key={g.id}><strong>{g.item}</strong><span>{g.accepted} accepted · {g.faulty} faulty · {g.resolution}</span></div>)}</div></section></>}
+   {task==='bank-reconciliation'&&<BankPanel state={state} run={run} busy={busy}/>}
+   {task==='sst-review'&&<section className="panel bk-card"><h3>SST review handoff</h3><p>Prepare supported transaction records and use the saved SST workflow instructions for review. The system does not calculate a universal SST rate or submit tax returns.</p><ul><li>Confirm registration type, applicable period and effective rules.</li><li>Review source invoices, partial settlements, credits and imported services separately.</li><li>Reconcile reviewed amounts to the actual tax-control ledger.</li></ul><button className="button button--secondary" onClick={()=>downloadCsv('sst-source-register.csv',state.documents)}>Export source register</button></section>}
+   {['reporting','ar-ap-review','month-end'].includes(task)&&<section className="panel bk-card"><h3>Operational balances and close review</h3><Balances state={state}/><p>These balances cover this workspace. Full financial statements require the actual general ledger, opening balances and supporting schedules.</p><button className="button button--secondary" onClick={openReports}>Open reports</button>
+    {task==='month-end'&&<form className="bk-form" onSubmit={e=>{e.preventDefault();const p=data(e);void run('close',{...p,controlsReviewed:p.controlsReviewed==='on'})}}><Field label="Close through" name="date" type="date"/><Field label="Reviewer / control reconciliation reference" name="reason"/><label className="bk-checkbox"><input name="controlsReviewed" type="checkbox" required/>Source completeness and ledger/control reconciliations have been reviewed.</label><button className="button button--primary" disabled={busy}>Lock operational period</button></form>}
+    {state.closedThrough&&<p>Closed through {state.closedThrough}. <button className="button button--ghost" onClick={()=>{const reason=window.prompt('Reason for reopening?');if(reason)void run('reopen',{reason})}}>Reopen with reason</button></p>}
+   </section>}
+   <section className="panel bk-card"><h3>Document review</h3><div className="bk-list">{state.documents.filter(d=>d.status==='pending').map(d=><div key={d.id}><span><strong>{d.reference} · {d.party}</strong><small>{label(d.kind)} · {d.currency} {major(d.amount)} · {d.evidence||'Evidence missing'}</small></span><button className="button button--ghost" disabled={busy} onClick={()=>{const evidence=window.prompt('Source document / evidence reference',d.evidence);if(evidence!==null)void run('edit',{documentId:d.id,evidence})}}>Edit evidence</button><button className="button button--primary" disabled={busy} onClick={()=>void run('approve',{documentId:d.id})}><Check size={14}/>Approve</button><button className="button button--ghost" disabled={busy} onClick={()=>{const reason=window.prompt('Rejection reason');if(reason)void run('reject',{documentId:d.id,reason})}}>Reject</button></div>)}{!state.documents.some(d=>d.status==='pending')&&<p>No documents are awaiting approval.</p>}</div></section>
+   {!localMode&&<section className="panel bk-card"><h3>AI proposal using this workflow</h3><p>The server loads this task and your saved company context. Review all output before staging records.</p><form onSubmit={analyse}><label><span>Paste OCR output or source text</span><textarea name="source" rows={6} maxLength={180000}/><input name="attachment" type="file" accept=".pdf,.jpg,.jpeg,.png"/></label><button className="button button--secondary" disabled={aiBusy}><UploadCloud size={16}/>{aiBusy?'Preparing proposal…':'Prepare AI proposal'}</button></form>{ai&&<pre className="bk-json">{ai}</pre>}{proposal&&(financialKinds.includes(task)||task==='adjustment')&&<button className="button button--secondary" disabled={busy} onClick={()=>void run('document',{...proposal,kind:task==='adjustment'?proposal.kind:task,party:proposal.party||proposal.customer||proposal.supplier||proposal.vendor||proposal.merchant,amount:proposal.amount||proposal.total,reference:proposal.reference,date:proposal.date,currency:proposal.currency||'MYR',evidence:sourceEvidence||String(proposal.evidence||''),note:'AI proposal; manually verify the original before approval.'})}>Stage extracted proposal for review</button>}</section>}
+  </div>
+ </div>
 }
-
-function BankRecon({ step, setStep }: { step: number; setStep: (step: number) => void }) {
-  const labels = ['Configure', 'Process', 'Review', 'Difference', 'Post']
-  return (
-    <div className="recon">
-      <div className="recon-steps">{labels.map((label, index) => <div className={step > index ? 'complete' : step === index + 1 ? 'active' : ''} key={label}><span>{step > index + 1 ? <Check size={14} /> : index + 1}</span><strong>{label}</strong></div>)}</div>
-      {step === 1 && <div className="recon-card"><span className="eyebrow">Step 1 of 5</span><h2>Upload and configure</h2><p>Select the approved bank adapter and reconciliation period before importing the statement.</p><div className="form-grid"><label><span>Bank adapter</span><select defaultValue="Maybank"><option>Maybank</option><option>CIMB</option><option>RHB</option><option>Public Bank</option></select></label><label><span>Period</span><input defaultValue="01 Oct 2026 — 31 Oct 2026" /></label></div><button className="recon-upload"><FileSpreadsheet size={25} /><strong>maybank-october.csv</strong><span>287 rows recognised · deterministic format match</span></button><button className="button button--primary align-end" onClick={() => setStep(2)}>Start matching<ArrowRight size={16} /></button></div>}
-      {step === 2 && <div className="recon-card recon-processing"><span className="processing-orbit"><Landmark size={23} /></span><span className="eyebrow">Processing statement</span><h2>Three ordered stages are running</h2><div className="stage-list"><span className="done"><CheckCircle2 />Normalise 287 statement rows</span><span className="done"><CheckCircle2 />Fetch 342 ledger candidates</span><span className="running"><Sparkles />Score auditable matches</span><span><Circle />Classify exceptions</span></div><button className="button button--primary" onClick={() => setStep(3)}>Show review results</button></div>}
-      {step === 3 && <div className="recon-card"><span className="eyebrow">Step 3 of 5</span><h2>Review match proposals</h2><div className="tab-row"><button className="active">Auto-confirmed <em>261</em></button><button>Needs review <em>19</em></button><button>Exceptions <em>7</em></button></div><div className="match-table"><div><span>Bank transaction</span><span>Ledger candidate</span><span>Signals</span><span>Decision</span></div>{[['PETRONAS DAGANG 0810', 'PI-2026-1048', '98%', 'Confirmed'], ['MERIDIAN FOODS 4192', 'SI-2026-0382', '96%', 'Confirmed'], ['OFFICEPRO KLCC', 'RCP-2026-0903', '94%', 'Confirmed']].map((row) => <div key={row[0]}>{row.map((cell, i) => <span key={cell}>{i === 2 ? <Badge tone="success">{cell}</Badge> : i === 3 ? <CheckCircle2 size={17} /> : cell}</span>)}</div>)}</div><button className="button button--primary align-end" onClick={() => setStep(4)}>Continue to difference<ArrowRight size={16} /></button></div>}
-      {step === 4 && <div className="recon-card"><span className="eyebrow">Step 4 of 5</span><h2>Difference summary</h2><div className="difference-grid"><div><span>Bank credits</span><strong>RM 128,440.00</strong></div><div><span>Bank debits</span><strong>RM 94,218.40</strong></div><div><span>Confirmed ledger</span><strong>RM 34,221.60</strong></div><div className="difference-zero"><span>Remaining difference</span><strong>RM 0.00</strong><CheckCircle2 size={18} /></div></div><div className="notice notice--success"><ShieldCheck size={18} /><div><strong>Posting gates satisfied</strong><p>All exceptions have a persisted decision and the currency-safe difference equals zero.</p></div></div><button className="button button--primary align-end" onClick={() => setStep(5)}>Review planned writes<ArrowRight size={16} /></button></div>}
-      {step === 5 && <div className="recon-card recon-finish"><span className="recon-finish__icon"><ShieldCheck size={28} /></span><span className="eyebrow">Final approval</span><h2>Ready to post reconciliation</h2><p>281 clearance dates and 2 approved fee journals will be written with idempotency keys. Every result will be appended to the audit log.</p><div className="write-summary"><span><strong>281</strong> matches to clear</span><span><strong>2</strong> journals to post</span><span><strong>0</strong> unresolved</span></div><button className="button button--primary"><Check size={16} />Confirm &amp; post</button></div>}
-    </div>
-  )
-}
-
-function ReportingPreview({ openReports }: { openReports: () => void }) {
-  return (
-    <div className="report-thread">
-      <div className="message message--workflow"><span className="message__avatar"><Bot size={17} /></span><div><p>I loaded the October trial balance, profit and loss, balance sheet, and cash flow statement. All source periods and balancing checks passed.</p><small>Reporting workflow · now</small></div></div>
-      <div className="report-preview">
-        <header><div><span className="eyebrow">Management analysis</span><h2>October 2026</h2></div><Badge tone="success">Source validated</Badge></header>
-        <div className="preview-kpis"><div><span>Gross margin</span><strong>42.8%</strong><small>+2.4 pts</small></div><div><span>Net margin</span><strong>13.6%</strong><small>+1.1 pts</small></div><div><span>Current ratio</span><strong>1.84</strong><small>+0.08</small></div></div>
-        <div className="summary-quote"><MessageSquareText size={20} /><p>October sales improved while operating costs remained controlled. Cash collection also strengthened, though one older customer balance still needs attention.</p></div>
-        <div className="report-preview__footer"><button className="button button--secondary" onClick={openReports}>View full report<ArrowRight size={16} /></button><div><button className="icon-button"><Download size={17} /></button><button className="icon-button"><Mail size={17} /></button><button className="icon-button"><MessageSquareText size={17} /></button></div></div>
-      </div>
-    </div>
-  )
+export function Balances({state}:{state:BookState}){const totals=summary(state);return <div className="bk-metrics">{Object.entries(totals).map(([k,v])=><div key={k}><small>{k.replace(/([A-Z])/g,' $1')}</small><strong>{['pending','disputes','unmatched'].includes(k)?v:`MYR ${major(v)}`}</strong></div>)}</div>}
+function BankPanel({state,run,busy}:{state:BookState;run:(type:string,p:Record<string,unknown>)=>Promise<void>;busy:boolean}){
+ const [problem,setProblem]=useState('')
+ return <><section className="panel bk-card"><h3>Import a normalised statement</h3><p>Paste one account/currency at a time. CSV columns: source_id,date,amount,reference. Use signed amounts (+ receipt, − payment) and unique stable source IDs. Quoted fields are not supported by this simple input; use references without commas.</p><form className="bk-form" onSubmit={e=>{e.preventDefault();const p=data(e);try{const lines=p.csv.trim().split(/\r?\n/);if(lines.shift()!=='source_id,date,amount,reference')throw Error('Use the exact CSV header shown above.');const rows=lines.map(line=>{const parts=line.split(',');if(parts.length!==4)throw Error('Each row must have four unquoted fields.');return{sourceId:parts[0],date:parts[1],amount:signed(parts[2]),reference:parts[3]}});setProblem('');void run('bank-import',{account:p.account,currency:p.currency,opening:signed(p.opening),closing:signed(p.closing),rows})}catch(err){setProblem(err instanceof Error?err.message:'Invalid statement')}}}>
+ <Field label="Account identifier (same as payment record)" name="account"/><Field label="Currency" name="currency" value="MYR"/><Field label="Opening balance" name="opening"/><Field label="Closing balance" name="closing"/><label className="bk-wide"><span>Statement CSV</span><textarea name="csv" rows={6} required placeholder={'source_id,date,amount,reference\nrow-001,2026-11-15,-700.00,PAY-001'}/></label><button className="button button--primary" disabled={busy}>Validate and import</button></form>{problem&&<p role="alert">{problem}</p>}</section>
+ <section className="panel bk-card"><h3>Confirm bank matches</h3><p>Matches clear cash records only. Unmatched or ambiguous items remain visible; matching rows alone is not a bank-to-GL balance reconciliation.</p>{state.bankRows.filter(r=>!state.matches.some(m=>m.bankId===r.id)).map(r=>{const options=candidates(state,r);return <form key={r.id} className="bk-match" onSubmit={e=>{e.preventDefault();void run('bank-match',{...data(e),bankId:r.id})}}><span><strong>{r.reference||r.sourceId}</strong><small>{r.date} · {r.currency} {major(r.amount)} · {options.length===1?'One exact candidate':options.length>1?'Ambiguous candidates':'No exact reference candidate'}</small></span><select name="documentId" required defaultValue=""><option value="">Select cash record for review</option>{state.documents.filter(d=>d.status==='approved'&&['customer-receipt','supplier-payment','expense-receipt','employee-reimbursement','customer-refund','supplier-refund','miscellaneous'].includes(d.kind)).map(d=><option key={d.id} value={d.id}>{d.reference} · {d.party} · {major(d.amount)}</option>)}</select><button className="button button--primary" disabled={busy}>Confirm match</button></form>})}<p>{state.matches.length} confirmed · {state.bankRows.length-state.matches.length} unmatched</p></section></>
 }

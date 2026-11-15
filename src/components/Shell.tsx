@@ -3,7 +3,7 @@ import {
   LayoutDashboard, LogOut, Menu, PanelLeftClose, ReceiptText, Search, Settings2, TableProperties,
 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
-import { clients } from '../data/mockData'
+
 import { useApp } from '../context/AppContext'
 import { useAuth } from '../context/AuthContext'
 import type { PageId } from '../types'
@@ -19,15 +19,15 @@ const navItems: Array<{ id: PageId; label: string; icon: typeof LayoutDashboard 
 ]
 
 export function Shell({ page, setPage, onSignOut, children }: { page: PageId; setPage: (page: PageId) => void; onSignOut: () => void; children: ReactNode }) {
-  const { activeClientId, setActiveClientId, reviews } = useApp()
+  const { clients, activeClientId, setActiveClientId, reviews } = useApp()
   const { user } = useAuth()
   const [clientOpen, setClientOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const activeClient = clients.find((client) => client.id === activeClientId) ?? clients[0]
   const pending = reviews.filter((review) => review.clientId === activeClientId).length
   const title = navItems.find((item) => item.id === page)?.label ?? 'BookAI'
-  const userInitials = (user?.user_metadata?.full_name || user?.email || 'MC').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
-  const userName = user?.user_metadata?.full_name || user?.email || 'Maya Chen'
+  const userInitials = (user?.user_metadata?.full_name || user?.email || 'LB').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
+  const userName = user?.user_metadata?.full_name || user?.email || 'Local bookkeeper'
 
   const navigate = (id: PageId) => {
     setPage(id)

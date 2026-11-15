@@ -20,7 +20,7 @@ export const relativeQueueAge = (value: string) => {
 export const downloadCsv = <T extends object>(filename: string, rows: T[]) => {
   if (!rows.length) return
   const headers = Object.keys(rows[0]) as Array<keyof T>
-  const escape = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`
+  const escape = (value: unknown) => { const raw=String(value ?? ''); const safe=/^[=+@\t\r]/.test(raw)||(/^-.+/.test(raw)&&!/^-[0-9]+(?:\.[0-9]+)?$/.test(raw)) ? "'"+raw : raw; return `"${safe.replace(/"/g, '""')}"` }
   const csv = [headers.map(escape).join(','), ...rows.map((row) => headers.map((header) => escape(row[header])).join(','))].join('\n')
   const link = document.createElement('a')
   link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
