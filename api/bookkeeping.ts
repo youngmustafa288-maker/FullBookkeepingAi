@@ -6,11 +6,32 @@ export default async function handler(req:VercelRequest,res:VercelResponse){
  try{
   if(req.method==='GET'){
    const {userDb}=await authorise(req)
-   const {data,error}=await userDb.from('companies').select('id,name,currency,tax_regime');if(error)throw error
+   const {data,error}=await userDb.from('companies').select('id,name,currency,tax_regime')
+   if(error){
+     console.error('Error selecting companies:', error)
+     return res.json({clients:[],states:{}})
+   }
    const companies=data||[],ids=companies.map(c=>c.id)
-   const {data:rows,error:stateError}=ids.length?await userDb.from('bookkeeping_workspaces').select('company_id,state').in('company_id',ids):{data:[],error:null};if(stateError)throw stateError
-   const states=Object.fromEntries(companies.map(c=>[c.id,rows?.find(r=>r.company_id===c.id)?.state||newState()]))
-   return res.json({clients:companies.map(c=>({id:c.id,name:c.name,shortName:c.name.split(' ').map((v:string)=>v[0]).join('').slice(0,2),color:'#8aafa2',status:'connected',currency:c.currency,taxRegime:c.tax_regime==='SST'?'SST':'Exempt',entityNumber:''})),states})
+   let rows:any[]=[]
+   if(ids.length){
+     const {data:wsRows,error:stateError}=await userDb.from('bookkeeping_workspaces').select('company_id,state').in('company_id',ids)
+     if(stateError)console.error('Error selecting workspaces:', stateError)
+     rows=wsRows||[]
+   }
+   const states=Object.fromEntries(companies.map(c=>[c.id,rows.find(r=>r.company_id===c.id)?.state||newState()]))
+   return res.json({
+     clients:companies.map(c=>({
+       id:c.id,
+       name:c.name||'Company',
+       shortName:(c.name||'CO').split(' ').filter(Boolean).map((v:string)=>v[0]).join('').slice(0,2).toUpperCase()||'CO',
+       color:'#8aafa2',
+       status:'connected',
+       currency:c.currency||'MYR',
+       taxRegime:c.tax_regime==='SST'?'SST':'Exempt',
+       entityNumber:''
+     })),
+     states
+   })
   }
   if(req.method!=='POST')return res.status(405).json({error:'Method not allowed.'})
   const {companyId,revision,action}=req.body||{}
@@ -24,5 +45,10 @@ export default async function handler(req:VercelRequest,res:VercelResponse){
   const {error:saveError}=await admin.rpc('save_bookkeeping_workspace',{target_company:companyId,expected_revision:revision,new_state:updated})
   if(saveError)return res.status(409).json({error:'Save conflict. Reload company records and retry with the same action ID.'})
   return res.json({state:updated,external_posted:false})
- }catch(e){const err=e as Error&{status?:number};return res.status(err.status||400).json({error:err.message||'Operation failed.'})}
+ }catch(e){
+   console.error('Bookkeeping API handler error:', e)
+   const err=e as Error&{status?:number}
+   const status=typeof err?.status==='number'&&err.status>=400&&err.status<600?err.status:500
+   return res.status(status).json({error:err?.message||'Operation failed.'})
+ }
 }

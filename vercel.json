@@ -10,8 +10,12 @@
     }
   ],
   "functions": {
+    "api/bookkeeping.ts": {
+      "includeFiles": "src/bookkeeping/**",
+      "maxDuration": 60
+    },
     "api/process.ts": {
-      "includeFiles": "workflow/references/**",
+      "includeFiles": "{workflow/references/**,src/bookkeeping/**}",
       "maxDuration": 60
     },
     "api/generate-config.ts": {

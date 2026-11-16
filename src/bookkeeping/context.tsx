@@ -3,12 +3,17 @@ import {applyAction,newState,type BookState} from './engine.mjs'
 import {supabase} from '../lib/supabase'
 import {clients as exampleClients} from '../data/mockData'
 import type {Client} from '../types'
-export const localMode=import.meta.env.VITE_BOOKKEEPING_MODE==='local'
+export const localMode=import.meta.env.VITE_BOOKKEEPING_MODE==='local' || (typeof window!=='undefined' && localStorage.getItem('bookai-mode')==='local')
 const key=(id:string)=>`bookai-v2:${id}`
 function load(id:string):BookState { try { const text=localStorage.getItem(key(id));if(text){const value=JSON.parse(text);if(value.version===1)return {...newState(),...value}} }catch{/* Keep an invalid saved file intact; start an empty in-memory workspace. */}return newState() }
 async function request(body?:unknown) {
  const {data:{session}}=await supabase.auth.getSession();if(!session)throw Error('Sign in before accessing company records.')
- const response=await fetch('/api/bookkeeping',{method:body?'POST':'GET',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},...(body?{body:JSON.stringify(body)}:{})});const data=await response.json();if(!response.ok)throw Error(data.error||'Could not save records.');return data
+ const response=await fetch('/api/bookkeeping',{method:body?'POST':'GET',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},...(body?{body:JSON.stringify(body)}:{})});
+ const text=await response.text();
+ let data:any;
+ try{data=JSON.parse(text)}catch{throw Error(response.ok?'Invalid response from server.':`Server error (${response.status}): ${text.slice(0,120)}`)}
+ if(!response.ok)throw Error(data.error||'Could not save records.');
+ return data
 }
 interface Value {clients:Client[];activeClientId:string;setActiveClientId:(id:string)=>void;state:BookState;act:(type:string,payload:Record<string,unknown>,requestId?:string)=>Promise<void>;error:string;busy:boolean;ready:boolean}
 const Context=createContext<Value|null>(null)

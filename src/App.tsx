@@ -32,8 +32,39 @@ function BookAIApp() {
     return <AuthPage />
   }
 
-  if(!book.ready)return <p>Loading company records…</p>
-  if(!book.clients.length)return <div className="panel" style={{padding:32}}><h2>Company records unavailable</h2><p>{book.error||"Assign your user to a company before continuing."}</p></div>
+  if(!book.ready)return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f2f1eb' }}><Loader2 size={32} className="spin" style={{ color: '#173b37' }} /></div>
+
+  if(!book.clients.length) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#f2f1eb', padding: 20 }}>
+        <div className="panel" style={{ padding: 32, maxWidth: 540, width: '100%', background: '#fff', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}>
+          <h2 style={{ fontSize: 22, color: '#173b37', marginBottom: 12 }}>Company records unavailable</h2>
+          <p style={{ color: '#555', marginBottom: 20, lineHeight: 1.5 }}>
+            {book.error || "No company is currently assigned to your account in Supabase."}
+          </p>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button 
+              className="btn btn--primary" 
+              style={{ background: '#173b37', color: '#fff', padding: '10px 18px', borderRadius: 6, border: 'none', cursor: 'pointer', fontWeight: 600 }}
+              onClick={() => window.location.reload()}
+            >
+              Retry Connection
+            </button>
+            <button 
+              className="btn btn--secondary" 
+              style={{ background: '#e5eee9', color: '#173b37', padding: '10px 18px', borderRadius: 6, border: '1px solid #c2dbd1', cursor: 'pointer', fontWeight: 600 }}
+              onClick={() => {
+                localStorage.setItem('bookai-mode', 'local')
+                window.location.reload()
+              }}
+            >
+              Load Sample Malaysian Companies
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const startWorkflow = (next: WorkflowId) => {
     setWorkflow(next)
