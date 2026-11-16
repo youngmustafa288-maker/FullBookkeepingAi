@@ -1,4 +1,4 @@
-export const allowedCaseActions=['document','allocate','unallocate','goods','resolve-goods','bank-import','bank-match','edit'];
+export const allowedCaseActions=['document','allocate','unallocate','goods','resolve-goods','bank-import','bank-match','edit','journal'];
 export function validateCaseActions(actions){
  if(!Array.isArray(actions)||actions.length>20)throw Error('A proposal may contain at most 20 actions.');
  for(const a of actions){if(!a||!allowedCaseActions.includes(a.type)||!a.payload||typeof a.payload!=='object'||Array.isArray(a.payload))throw Error('The proposal contains an unsupported action.');}

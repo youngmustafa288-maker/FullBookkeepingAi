@@ -1,24 +1,19 @@
 import type {VercelRequest,VercelResponse} from '@vercel/node'
 import {authorise} from '../server/bookkeeping-auth'
+import {requireSuccessfulRead,requireWorkspaceState} from '../server/bookkeeping-read.mjs'
 import {applyAction,newState} from '../src/bookkeeping/engine.mjs'
 export default async function handler(req:VercelRequest,res:VercelResponse){
  res.setHeader('Cache-Control','no-store')
  try{
   if(req.method==='GET'){
    const {userDb}=await authorise(req)
-   const {data,error}=await userDb.from('companies').select('id,name,currency,tax_regime')
-   if(error){
-     console.error('Error selecting companies:', error)
-     return res.json({clients:[],states:{}})
-   }
-   const companies=data||[],ids=companies.map(c=>c.id)
+   const companies=requireSuccessfulRead(await userDb.from('companies').select('id,name,currency,tax_regime'),'company list')
+   const ids=companies.map(c=>c.id)
    let rows:any[]=[]
    if(ids.length){
-     const {data:wsRows,error:stateError}=await userDb.from('bookkeeping_workspaces').select('company_id,state').in('company_id',ids)
-     if(stateError)console.error('Error selecting workspaces:', stateError)
-     rows=wsRows||[]
+     rows=requireSuccessfulRead(await userDb.from('bookkeeping_workspaces').select('company_id,state').in('company_id',ids),'company workspaces')
    }
-   const states=Object.fromEntries(companies.map(c=>[c.id,rows.find(r=>r.company_id===c.id)?.state||newState()]))
+   const states=Object.fromEntries(companies.map(c=>[c.id,requireWorkspaceState(rows.find(r=>r.company_id===c.id),newState)]))
    return res.json({
      clients:companies.map(c=>({
        id:c.id,
@@ -38,7 +33,7 @@ export default async function handler(req:VercelRequest,res:VercelResponse){
   if(typeof companyId!=='string'||!Number.isSafeInteger(revision)||!action||typeof action.id!=='string'||JSON.stringify(action).length>1_500_000)return res.status(400).json({error:'Invalid company, revision or action.'})
   const {user,admin}=await authorise(req,companyId);if(!admin)return res.status(503).json({error:'Configure the server-only service role key to save company records.'})
   const {data,error}=await admin.from('bookkeeping_workspaces').select('state').eq('company_id',companyId).maybeSingle();if(error)throw error
-  const current=data?.state||newState()
+  const current=requireWorkspaceState(data,newState)
   if(current.audit.some((a:{id:string})=>a.id===action.id))return res.json({state:current,idempotent:true})
   if(current.revision!==revision)return res.status(409).json({error:'Records changed in another session. Reload before retrying.'})
   const updated=applyAction(current,action,user.id)

@@ -48,6 +48,7 @@ export interface ReviewItem {
   explanation?: string
   missing?: string[]
   reviewed?: boolean
+  reviewNote?: string
   id: string
   clientId: string
   workflow: Exclude<WorkflowId, 'reporting'>
@@ -65,7 +66,7 @@ export interface ReviewItem {
   fields: Record<string, string | number>
 }
 
-export type AuditAction = 'Approved' | 'Rejected' | 'Edited' | 'Posted' | 'Voided' | 'Failed' | 'Submitted' | 'Allocated' | 'Matched'
+export type AuditAction = 'Approved' | 'Rejected' | 'Edited' | 'Posted' | 'Voided' | 'Failed' | 'Submitted' | 'Allocated' | 'Matched' | 'Period Closed' | 'Period Reopened'
 
 export interface AuditEvent {
   id: string

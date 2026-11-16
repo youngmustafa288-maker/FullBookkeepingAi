@@ -114,7 +114,7 @@ export function ReviewQueue() {
         <div className="queue-list">
           {visible.map((item) => {
             const DocumentIcon = documentIcon(item)
-            const canQuickApprove = (item.confidence ?? 0) > 90 && !item.warning && !item.exception
+            const canQuickApprove = (item.confidence ?? 0) > 90 && !item.warning && !item.exception && !item.actions?.some(action=>action.type==='journal')
             const ageHours = (Date.now() - new Date(item.queuedAt).getTime()) / 3_600_000
             return (
               <article className="queue-card" key={item.id}>

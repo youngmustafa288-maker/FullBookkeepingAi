@@ -6,6 +6,7 @@ import { downloadCsv, money, mytDate } from '../lib/format'
 import type { LedgerRecord } from '../types'
 import { Badge } from '../components/Badge'
 import { ReviewDrawer } from '../components/ReviewDrawer'
+import { SettlementPanel } from '../components/SettlementPanel'
 
 const filters = ['All', 'Purchase Invoices', 'Sales Invoices', 'Receipts', 'Bank Recon', 'Overdue']
 
@@ -68,6 +69,7 @@ export function Accounts() {
         </div>
         <footer className="table-footer"><span>Showing 1–{visible.length} of {visible.length} records</span><div><button disabled>Previous</button><button className="active">1</button><button disabled>Next</button></div></footer>
       </section>
+      <SettlementPanel key={activeClientId} currency={client.currency}/>
       <ReviewDrawer item={selectedReview} onClose={() => setSelectedReference(null)} onApprove={approveReview} onReject={rejectReview} />
     </div>
   )

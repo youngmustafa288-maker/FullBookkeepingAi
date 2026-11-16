@@ -1,4 +1,8 @@
 import {validateCaseActions,resolveActionReferences} from './cases.mjs'
+import {prepareJournal,parseChart} from './ledger.mjs'
+import {journalProposalIssues} from './proposal.mjs'
+import {validateControlMapping} from './reconciliation.mjs'
+import {closingReadiness} from './closing.mjs'
 // All monetary calculations use integer minor units (sen for MYR).
 export const financialKinds = ['sales-invoice','purchase-invoice','customer-receipt','supplier-payment','expense-receipt','employee-claim','employee-reimbursement','sales-credit','purchase-credit','customer-refund','supplier-refund','miscellaneous'];
 export function minor(value) {
@@ -8,7 +12,7 @@ export function minor(value) {
   if (!Number.isSafeInteger(n)) throw Error('Amount is too large.'); return n;
 }
 export const major = n => (n/100).toFixed(2);
-export const newState = () => ({version:1,revision:0,cases:[],documents:[],allocations:[],reversals:[],goods:[],bankRows:[],matches:[],audit:[],contexts:{profile:'',vendors:'',glCodes:'',policies:''},closedThrough:null});
+export const newState = () => ({version:1,revision:0,cases:[],documents:[],allocations:[],reversals:[],goods:[],bankRows:[],bankStatements:[],matches:[],journals:[],controlAccounts:{customer:'',supplier:'',banks:{}},periodCloses:[],audit:[],contexts:{profile:'',vendors:'',glCodes:'',policies:''},closedThrough:null});
 function assert(ok,msg) { if(!ok) throw Error(msg); }
 function date(value) { assert(/^\d{4}-\d{2}-\d{2}$/.test(value||'') && !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0,10)===value,'Use a valid YYYY-MM-DD date.'); return value; }
 function required(value,label) { assert(typeof value==='string' && value.trim().length>0 && value.length<=200,`${label} is required (maximum 200 characters).`); return value.trim(); }
@@ -38,30 +42,71 @@ export function summary(s,asOf='9999-12-31',currency='MYR') {
  return {receivables:total('sales-invoice'),payables:total('purchase-invoice'),unallocatedReceipts:total('customer-receipt'),unallocatedPayments:total('supplier-payment'),staffPayables:total('employee-claim'),unallocatedReimbursements:total('employee-reimbursement'),pending:s.documents.filter(d=>d.status==='pending').length,disputes:s.goods.filter(g=>!g.resolved && g.faulty>0).length,unmatched:s.bankRows.filter(r=>!s.matches.some(m=>m.bankId===r.id)).length};
 }
 export function applyAction(previous,action,actor='Bookkeeper',now=new Date().toISOString()) {
- let s=structuredClone(previous); s.reversals ||= []; s.cases ||= []; const {type,payload:p={}}=action;
+ let s=structuredClone(previous); s.reversals ||= []; s.cases ||= []; s.journals ||= []; s.bankStatements ||= []; s.controlAccounts ||= {customer:'',supplier:'',banks:{}}; s.periodCloses ||= []; const {type,payload:p={}}=action;
  const id=required(action.id,'Action ID');
  if(s.audit.some(e=>e.id===id)) return previous; // Stable action id reused on network retry.
  const effective=p.date || now.slice(0,10);
- if(!['context','reopen','close','reject','stage-case','edit-case','reject-case'].includes(type)) { date(effective); assert(!s.closedThrough||effective>s.closedThrough,'This period is closed. Reopen it with a reason first.'); }
+ if(!['context','reopen','close','reject','stage-case','edit-case','reject-case','control-map'].includes(type)) { date(effective); assert(!s.closedThrough||effective>s.closedThrough,'This period is closed. Reopen it with a reason first.'); }
  if(type==='stage-case') {
   const actions=validateCaseActions(p.actions||[]);
   const fields=p.fields&&typeof p.fields==='object'?p.fields:{};
-  s.cases.push({id,workflow:['receipt','invoice','bank-reconciliation','reporting'].includes(p.workflow)?p.workflow:'invoice',message:String(p.message||''),actions,fields:structuredClone(fields),warnings:Array.isArray(p.warnings)?p.warnings.map(String):[],missing:Array.isArray(p.missing)?p.missing.map(String):[],blocked:Boolean(p.blocked)||!actions.length||(Array.isArray(p.missing)&&p.missing.length>0),reviewed:false,status:'pending',confidence:typeof p.confidence==='number'?Math.min(100,Math.max(0,p.confidence)):null,evidence:String(p.evidence||''),filename:String(p.filename||'Chat proposal'),mimeType:String(p.mimeType||''),queuedAt:now});
+  const proposalIssues=journalProposalIssues(s,actions,id,minor);
+  s.cases.push({id,proposalIssues,reviewNote:'',workflow:['receipt','invoice','bank-reconciliation','reporting'].includes(p.workflow)?p.workflow:'invoice',message:String(p.message||''),actions,fields:structuredClone(fields),warnings:Array.isArray(p.warnings)?p.warnings.map(String):[],missing:Array.isArray(p.missing)?p.missing.map(String):[],blocked:Boolean(p.blocked)||!actions.length||(Array.isArray(p.missing)&&p.missing.length>0)||proposalIssues.length>0,reviewed:false,status:'pending',confidence:typeof p.confidence==='number'?Math.min(100,Math.max(0,p.confidence)):null,evidence:String(p.evidence||''),filename:String(p.filename||'Chat proposal'),mimeType:String(p.mimeType||''),queuedAt:now});
  } else if(type==='edit-case') {
   const c=s.cases.find(c=>c.id===p.caseId);assert(c?.status==='pending','Only a pending case can be corrected.');
   if(p.fields&&typeof p.fields==='object'){
    for(const [key,value] of Object.entries(p.fields))if(['reference','party','date','dueDate','amount','currency','category','bankAccount','evidence','note','originalId'].includes(key)){
+    const first=c.actions.find(a=>a.type==='document');
+    // Once a private uploaded source is linked, editable proposal fields must
+    // not swap it for a new string. The reviewer can add separate GL evidence.
+    if(key==='evidence' && c.evidence.startsWith('evidence://bookkeeping-evidence/')){
+     c.fields[key]=c.evidence;if(first)first.payload[key]=c.evidence;
+     continue;
+    }
     c.fields[key]=String(value);
-    const first=c.actions.find(a=>a.type==='document');if(first)first.payload[key]=String(value);
-    if(key==='evidence')c.evidence=String(value);
+    if(first)first.payload[key]=String(value);
+    if(key==='evidence' && String(value).trim())c.evidence=String(value);
    }
   }
-  if(p.reviewed===true){assert(c.actions.length>0,'Ask AI to prepare a supported action before approval.');c.reviewed=true;c.blocked=false;}
+  if(p.journals!==undefined){
+   assert(Array.isArray(p.journals)&&p.journals.length<=20,'Invalid journal correction batch.');
+   const seen=new Set();
+   for(const patch of p.journals){
+    assert(patch&&Number.isSafeInteger(patch.index)&&!seen.has(patch.index),'Each journal correction must target one distinct action index.');
+    seen.add(patch.index);
+    const target=c.actions[patch.index];assert(target?.type==='journal','Only an existing proposed journal can be corrected.');
+    const next={...target.payload};
+    for(const key of ['reference','date','currency','description','evidence'])if(Object.hasOwn(patch,key))next[key]=String(patch[key]);
+    if(Object.hasOwn(patch,'lines')){
+     assert(Array.isArray(patch.lines)&&patch.lines.length>=2&&patch.lines.length<=100,'A journal needs 2–100 lines.');
+     next.lines=patch.lines.map(line=>{
+      assert(line&&typeof line==='object'&&!Array.isArray(line),'Invalid corrected journal line.');
+      return {code:String(line.code||''),debit:String(line.debit??'0'),credit:String(line.credit??'0')};
+     });
+    }
+    target.payload=next;
+   }
+  }
+  c.proposalIssues=journalProposalIssues(s,c.actions,c.id,minor);
+  if(p.reviewNote!==undefined){assert(typeof p.reviewNote==='string'&&p.reviewNote.length<=2000,'Review note is too long.');c.reviewNote=p.reviewNote.trim();}
+  if(p.reviewed===true){
+   assert(c.actions.length>0,'Ask AI to prepare a supported action before approval.');
+   assert(c.proposalIssues.length===0,c.proposalIssues[0]||'Correct the journal before approval.');
+   if(c.blocked)assert(c.reviewNote||c.fields.note,'Explain how the flagged questions were resolved in a reviewer note.');
+   c.reviewed=true;c.blocked=false;
+  } else if(p.journals!==undefined || p.fields!==undefined){
+   // Any substantive change cancels an earlier journal sign-off.
+   if(c.actions.some(a=>a.type==='journal'))c.reviewed=false;
+  }
  } else if(type==='reject-case') {
   const c=s.cases.find(c=>c.id===p.caseId);assert(c?.status==='pending','Only a pending case can be rejected.');c.status='rejected';c.rejectionReason=required(p.reason,'Rejection reason');
  } else if(type==='approve-case') {
   const c=s.cases.find(c=>c.id===p.caseId);assert(c?.status==='pending','This case is no longer pending.');assert(!c.blocked&&c.actions.length>0,'Resolve the flagged questions in full review before approval.');
   const actions=validateCaseActions(c.actions),caseId=c.id,evidence=c.evidence;
+  if(actions.some(a=>a.type==='journal')){
+   assert(c.reviewed===true,'Open full review and explicitly confirm the proposed journal before approval.');
+   const issues=journalProposalIssues(s,actions,caseId,minor);assert(issues.length===0,issues[0]||'Correct the proposed journal before approval.');
+  }
   for(let i=0;i<actions.length;i++){
    const a=actions[i],payload=resolveActionReferences(a.payload,caseId,i),actionId=`${caseId}:action:${i}`;
    if(a.type==='document')payload.evidence=payload.evidence||evidence;
@@ -133,24 +178,57 @@ export function applyAction(previous,action,actor='Bookkeeper',now=new Date().to
   const account=required(p.account,'Bank account'),currency=required(p.currency,'Currency').toUpperCase();assert(/^[A-Z]{3}$/.test(currency),'Use a three-letter currency code.');
   const opening=Number(p.opening),closing=Number(p.closing);assert(Number.isSafeInteger(opening)&&Number.isSafeInteger(closing),'Opening/closing balances must be integer minor units.');
   let total=opening;
-  p.rows.forEach((r,i)=>{date(r.date);assert(!s.closedThrough||r.date>s.closedThrough,'Statement includes a closed period.');assert(Number.isSafeInteger(r.amount)&&r.amount!==0,'Use nonzero signed integer minor units.');required(r.sourceId,'Statement row ID');assert(!s.bankRows.some(b=>b.account===account&&b.currency===currency&&b.sourceId===r.sourceId),'Duplicate statement row ID for this account.');total+=r.amount;assert(Number.isSafeInteger(total),'Statement balance exceeds supported precision.');s.bankRows.push({id:`${id}-${i}`,account,currency,sourceId:r.sourceId,date:r.date,amount:r.amount,reference:String(r.reference||'')});});
+  p.rows.forEach((r,i)=>{date(r.date);assert(!s.closedThrough||r.date>s.closedThrough,'Statement includes a closed period.');assert(Number.isSafeInteger(r.amount)&&r.amount!==0,'Use nonzero signed integer minor units.');required(r.sourceId,'Statement row ID');assert(!s.bankRows.some(b=>b.account===account&&b.currency===currency&&b.sourceId===r.sourceId),'Duplicate statement row ID for this account.');total+=r.amount;assert(Number.isSafeInteger(total),'Statement balance exceeds supported precision.');s.bankRows.push({id:`${id}-${i}`,statementId:id,account,currency,sourceId:r.sourceId,date:r.date,amount:r.amount,reference:String(r.reference||'')});});
   assert(total===closing,'Statement opening balance plus movements does not equal closing balance.');
+  const endDate=p.rows.reduce((d,r)=>r.date>d?r.date:d,'0000-00-00');
+  s.bankStatements.push({id,account,currency,opening,closing,endDate,rowCount:p.rows.length});
  } else if(type==='bank-match') {
   const bank=s.bankRows.find(b=>b.id===p.bankId),d=approved(s,p.documentId);assert(bank,'Bank row not found.');
   assert(!s.matches.some(m=>m.bankId===bank.id||m.documentId===d.id),'This bank row or cash document is already matched.');
   assert(['customer-receipt','supplier-payment','expense-receipt','employee-reimbursement','customer-refund','supplier-refund','miscellaneous'].includes(d.kind),'Match a cash movement, not an invoice.');
   assert(bank.account===d.bankAccount&&bank.currency===d.currency&&bank.amount===(d.direction==='out'?-d.amount:d.amount),'Bank account, currency, direction and exact amount must agree.');
-  assert(!s.closedThrough||bank.date>s.closedThrough,'Bank row belongs to a closed period.');s.matches.push({id,bankId:bank.id,documentId:d.id,date:effective});
+  assert(!s.closedThrough||bank.date>s.closedThrough,'Bank row belongs to a closed period.');
+  assert(effective>=bank.date,'Match review date cannot precede the bank transaction.');
+  if(!candidates(s,bank).some(candidate=>candidate.id===d.id))required(p.reviewNote,'Reason for manual bank match');
+  s.matches.push({id,bankId:bank.id,documentId:d.id,date:effective,reviewNote:String(p.reviewNote||'').slice(0,1000)});
+ } else if(type==='control-map') {
+  assert(!s.closedThrough,'Reopen the closed period with a reason before changing GL control mappings.');
+  const {code,account}=validateControlMapping(s,p.role,p.code,p.account);
+  if(p.role==='bank')s.controlAccounts.banks[account]=code;
+  else s.controlAccounts[p.role]=code;
+ } else if(type==='journal') {
+  const entry=prepareJournal(s,p,minor);
+  s.journals.push({id,date:date(p.date),...entry,postedBy:actor,postedAt:now});
  } else if(type==='context') {
-  assert(['profile','vendors','glCodes','policies'].includes(p.slot),'Invalid context slot.');assert(typeof p.content==='string'&&p.content.length<=524288,'Context is too large.');s.contexts[p.slot]=p.content;
+  if(['glCodes','policies'].includes(p.slot)) assert(!s.closedThrough,'Reopen the closed period with a reason before changing historical accounting configuration.');
+  assert(['profile','vendors','glCodes','policies'].includes(p.slot),'Invalid context slot.');assert(typeof p.content==='string'&&p.content.length<=524288,'Context is too large.');
+  if(p.slot==='glCodes'&&s.journals.length){
+   const newChart=parseChart(p.content);
+   for(const line of s.journals.flatMap(j=>j.lines)){
+    const entry=newChart.get(line.code);assert(entry&&entry.type===line.type,`Existing posted account ${line.code} must remain in the chart with its original accounting type.`);
+   }
+  }
+  if(p.slot==='glCodes') {
+   const reviewState={...s,contexts:{...s.contexts,glCodes:p.content}};
+   for(const role of ['customer','supplier'])if(s.controlAccounts[role])validateControlMapping(reviewState,role,s.controlAccounts[role]);
+   for(const [account,code] of Object.entries(s.controlAccounts.banks))validateControlMapping(reviewState,'bank',code,account);
+  }
+  s.contexts[p.slot]=p.content;
  } else if(type==='close') {
-  date(p.date);assert(!s.closedThrough||p.date>s.closedThrough,'Select a later close date.');required(p.reason,'Close review reference');
-  assert(!s.cases.some(c=>c.status==='pending'),'Resolve review cases before closing.');
-  assert(!s.documents.some(d=>d.status==='pending'&&d.date<=p.date),'Resolve pending documents before closing.');
-  assert(!s.goods.some(g=>!g.resolved&&g.date<=p.date),'Resolve goods claims before closing.');
-  assert(!s.bankRows.some(r=>r.date<=p.date&&!s.matches.some(m=>m.bankId===r.id)),'Resolve unmatched bank rows before closing.');
-  assert(p.controlsReviewed===true,'Confirm that ledger/control balances and source completeness were reviewed.');s.closedThrough=p.date;
- } else if(type==='reopen') {required(p.reason,'Reopening reason');s.closedThrough=null;
+  date(p.date);required(p.reason,'Close review reference');
+  assert(p.controlsReviewed===true,'Confirm you reviewed the recorded ledger, source completeness and control balances.');
+  assert(p.adjustmentsReviewed===true,'Confirm manual review of accruals, tax, depreciation and other applicable month-end adjustments.');
+  const currency=String(p.currency||'MYR').toUpperCase();
+  const malaysiaToday=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(now));
+  const pack=closingReadiness(s,p.date,currency,malaysiaToday);
+  assert(pack.ready,`Month-end close blocked: ${pack.blocking[0]?.label}: ${pack.blocking[0]?.detail}`);
+  s.periodCloses.push({id,date:p.date,priorThrough:s.closedThrough||null,reason:p.reason.trim(),currency,closedAt:now,closedBy:actor,checks:structuredClone(pack.checks),currencies:pack.currencies,review:{controls:true,adjustments:true},reopenedAt:null,reopenedBy:null,reopenReason:null});
+  s.closedThrough=p.date;
+ } else if(type==='reopen') {
+  const reason=required(p.reason,'Reopening reason');assert(s.closedThrough,'No closed period to reopen.');
+  const latest=[...s.periodCloses].reverse().find(c=>c.date===s.closedThrough&&!c.reopenedAt);
+  if(latest){latest.reopenedAt=now;latest.reopenedBy=actor;latest.reopenReason=reason;s.closedThrough=latest.priorThrough;}
+  else s.closedThrough=null; // Safely unlock a pre-Step-6 legacy close without fabricating history.
  } else throw Error('Unsupported action.');
  // Prevent backdated changes from creating negative balances at any later event date.
  const affected=new Set();

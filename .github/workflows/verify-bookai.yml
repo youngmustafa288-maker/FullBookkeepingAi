@@ -1,0 +1,37 @@
+name: Verify BookAI source (no deployment)
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      staging_url:
+        description: Optional already-deployed staging URL for read-only smoke tests
+        type: string
+        required: false
+permissions:
+  contents: read
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run verify:release
+        env:
+          VITE_BOOKKEEPING_MODE: cloud
+      - run: npm test
+      - run: npm run build
+        env:
+          VITE_BOOKKEEPING_MODE: cloud
+          VITE_SUPABASE_URL: https://placeholder.supabase.co
+          VITE_SUPABASE_ANON_KEY: public-ci-placeholder-not-a-live-key
+      - run: npm run check:server
+      - name: Check existing staging deployment (optional)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.staging_url != '' }}
+        env:
+          BOOKAI_STAGING_URL: ${{ inputs.staging_url }}
+        run: npm run smoke:staging
