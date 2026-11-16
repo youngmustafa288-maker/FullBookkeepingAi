@@ -1,7 +1,7 @@
 import {useBookkeeping,localMode} from '../bookkeeping/context'
 import {
   BarChart3, Bell, BookOpenCheck, Bot, ChevronDown, ClipboardCheck, FileBarChart,
-  LayoutDashboard, LogOut, Menu, PanelLeftClose, ReceiptText, Search, Settings2, TableProperties,
+  LayoutDashboard, LogOut, Menu, PanelLeftClose, ReceiptText, Search, Settings2,
 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 
@@ -12,7 +12,6 @@ import type { PageId } from '../types'
 const navItems: Array<{ id: PageId; label: string; icon: typeof LayoutDashboard }> = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'workspace', label: 'Workflow workspace', icon: Bot },
-  { id: 'accounts', label: 'Accounts table', icon: TableProperties },
   { id: 'reports', label: 'Reports', icon: FileBarChart },
   { id: 'review', label: 'Review queue', icon: ClipboardCheck },
   { id: 'audit', label: 'Audit log', icon: BookOpenCheck },

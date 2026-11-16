@@ -1,7 +1,6 @@
 export type PageId =
   | 'dashboard'
   | 'workspace'
-  | 'accounts'
   | 'reports'
   | 'review'
   | 'audit'

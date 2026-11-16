@@ -6,7 +6,6 @@ import { AuthPage } from './pages/AuthPage'
 import { Shell } from './components/Shell'
 import { Dashboard } from './pages/Dashboard'
 import { Workspace } from './pages/Workspace'
-import { Accounts } from './pages/Accounts'
 import { Reports } from './pages/Reports'
 import { ReviewQueue } from './pages/ReviewQueue'
 import { AuditLog } from './pages/AuditLog'
@@ -74,7 +73,6 @@ function BookAIApp() {
   const renderPage = () => {
     switch (page) {
       case 'workspace': return <Workspace key={workflow+book.activeClientId} workflow={workflow} setWorkflow={setWorkflow} openReports={() => setPage('reports')} />
-      case 'accounts': return <Accounts />
       case 'reports': return <Reports />
       case 'review': return <ReviewQueue />
       case 'audit': return <AuditLog />

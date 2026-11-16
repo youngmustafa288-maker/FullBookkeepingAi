@@ -1,5 +1,5 @@
 {
   "src/styles.css": "587c9867ba34f1ec47f5968688fa6124a59b31cc66bd91cd17a6073d5a0559b1",
-  "src/App.tsx": "309e7f20ebef801c32b0911b66f168616ff1760754d38bb61980242173c38a41",
-  "src/components/Shell.tsx": "9d31d6e3f202b155fae58b1b94963215bd5c7e140cfee3d3d6de86ec24ca01e7"
+  "src/App.tsx": "f26f4a98b300df7dcd1c6f6884ed60761602e16d09ab5dcf6fba029722ba33f3",
+  "src/components/Shell.tsx": "3b7558db6acdea53d736f7aa2a3d96dbb22f88b79f0c77eaa38de971ff6fcfe9"
 }

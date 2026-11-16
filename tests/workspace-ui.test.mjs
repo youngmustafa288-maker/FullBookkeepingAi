@@ -9,7 +9,7 @@ import React,{act} from 'react'
 import {createRoot} from 'react-dom/client'
 import {Simulate} from 'react-dom/test-utils'
 
-test('original workspace: upload → AI proposal → review corrections → accounts/audit, and AI client configuration',async()=>{
+test('workspace: upload → AI proposal → review corrections → reports/audit, and upload-only client configuration',async()=>{
  const dom=new JSDOM('<!doctype html><div id="root"></div>',{url:'http://localhost'})
  for(const name of ['window','document','HTMLElement','HTMLInputElement','FileReader','File','Blob','Event','MouseEvent','localStorage'])Object.defineProperty(globalThis,name,{value:dom.window[name],configurable:true,writable:true})
  Object.defineProperty(globalThis,'navigator',{value:dom.window.navigator,configurable:true})
@@ -41,13 +41,11 @@ test('original workspace: upload → AI proposal → review corrections → acco
   const reference=document.querySelector('input[aria-label=reference]');await act(async()=>Simulate.change(reference,{target:{value:'P100-CORRECTED'}}))
   await click([...document.querySelector('[role=dialog]').querySelectorAll('button')].find(b=>b.textContent.trim()==='Approve'))
   state=JSON.parse(localStorage.getItem('bookai-v2:suria'));assert.equal(state.documents.length,1);assert.equal(state.documents[0].reference,'P100-CORRECTED');assert.equal(state.documents[0].status,'approved');assert.equal(state.cases[0].status,'approved')
-  await click(button('Accounts table'));assert.ok(document.querySelector('.accounts-table'));assert.ok(document.body.textContent.includes('P100-CORRECTED'))
+  await click(button('Reports'));assert.equal(document.querySelectorAll('.report-tabs>button').length,5);assert.ok(document.body.textContent.includes('General Ledger'));assert.ok(document.body.textContent.includes('Management Summary'))
   await click(button('Audit log'));assert.ok(document.querySelector('.audit-table'));assert.ok(document.body.textContent.includes('approve-case'))
-  await click(button('Client configuration'));assert.ok(document.querySelector('.config-dropzone'));assert.equal([...document.querySelectorAll('button')].filter(b=>b.textContent.includes('Configure with AI')).length,4)
-  await click([...document.querySelectorAll('button')].find(b=>b.textContent.includes('Configure with AI')&&b.closest('.config-extracted__item').textContent.includes('Chart of Accounts')))
-  const chatInput=document.querySelector('.config-chat-input input');await act(async()=>Simulate.change(chatInput,{target:{value:'Our confirmed chart has 6100 Office expenses.'}}));await click(document.querySelector('.config-chat-input button'))
-  await click(button('Use this draft'));state=JSON.parse(localStorage.getItem('bookai-v2:suria'));assert.equal(state.contexts.glCodes,'','AI draft must not silently become active')
-  const chartCard=[...document.querySelectorAll('.config-extracted__item')].find(el=>el.textContent.includes('Chart of Accounts'));await click([...chartCard.querySelectorAll('button')].find(b=>b.textContent.trim()==='Review'));await click(button('Approve & save'))
+  await click(button('Client configuration'));assert.ok(document.querySelector('.config-dropzone'));assert.equal([...document.querySelectorAll('button')].filter(b=>b.textContent.includes('Configure with AI')).length,0);assert.equal(document.querySelector('.config-extracted'),null)
+  const configInput=document.querySelector('.config-dropzone input[type=file]');Object.defineProperty(configInput,'files',{value:[new File(['chart'],'chart.pdf',{type:'application/pdf'})],configurable:true})
+  await act(async()=>configInput.dispatchEvent(new Event('change',{bubbles:true})));for(let i=0;i<5;i++)await flush()
   state=JSON.parse(localStorage.getItem('bookai-v2:suria'));assert.ok(state.contexts.glCodes.includes('6100'));assert.ok(calls.includes('/api/generate-config'));assert.ok(calls.includes('/api/process'))
  }finally{await act(async()=>root.unmount());await supabase.auth.dispose();globalThis.fetch=originalFetch;dom.window.close();globalThis.IS_REACT_ACT_ENVIRONMENT=false}
 })

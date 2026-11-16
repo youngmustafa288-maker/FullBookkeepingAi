@@ -26,7 +26,7 @@ export function Dashboard({ navigate, startWorkflow }: { navigate: (page: PageId
     { label: 'MYR payables', value: money(payables), detail: 'Outstanding this month', icon: CircleDollarSign, tone: 'danger' },
     { label: 'MYR receivables', value: money(receivables), detail: 'Open customer invoices', icon: WalletCards, tone: 'success' },
     { label: 'Pending review', value: String(clientReviews.length), detail: 'Require your decision', icon: ScanLine, tone: 'warning', action: () => navigate('review') },
-    { label: 'Overdue invoices', value: String(overdue), detail: 'Past their due date', icon: FileWarning, tone: 'danger', action: () => navigate('accounts') },
+    { label: 'Overdue invoices', value: String(overdue), detail: 'Past their due date', icon: FileWarning, tone: 'danger', action: () => navigate('reports') },
   ]
 
   return (
@@ -52,7 +52,7 @@ export function Dashboard({ navigate, startWorkflow }: { navigate: (page: PageId
               const Icon = workflowIcon[activity.workflow]
               const tone = activity.status === 'Posted' || activity.status === 'Approved' ? 'success' : activity.status === 'Failed' ? 'danger' : 'warning'
               return (
-                <button className="activity-item" key={activity.id} onClick={() => activity.status === 'Pending Approval' ? navigate('review') : navigate('accounts')}>
+                <button className="activity-item" key={activity.id} onClick={() => activity.status === 'Pending Approval' ? navigate('review') : navigate('reports')}>
                   <span className="activity-item__icon"><Icon size={17} /></span>
                   <span className="activity-item__copy"><strong>{activity.description}</strong><small>{activity.time}</small></span>
                   <Badge tone={tone}>{activity.status}</Badge>

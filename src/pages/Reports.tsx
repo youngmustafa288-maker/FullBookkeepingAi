@@ -7,10 +7,8 @@ import {trialBalance} from '../bookkeeping/ledger.mjs'
 import {balanceSheet,generalLedgerDetail,profitAndLoss,statementReadiness,type StatementReadiness} from '../bookkeeping/statements.mjs'
 import {downloadCsv,money} from '../lib/format'
 import {Badge} from '../components/Badge'
-import {ControlReconciliation} from '../components/ControlReconciliation'
-import {MonthEndClosePanel} from '../components/MonthEndClosePanel'
 
-const tabs=['Trial Balance','Profit & Loss','Balance Sheet','Cash Flow','Management Analysis']
+const tabs=['Trial Balance','Profit & Loss','Balance Sheet','General Ledger','Management Summary']
 const todayMY=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())
 const decimal=(value:number)=>major(value)
 
@@ -27,7 +25,7 @@ export function Reports(){
  const {clients,activeClientId}=useApp()
  const {state}=useBookkeeping()
  const client=clients.find(c=>c.id===activeClientId)!
- const [tab,setTab]=useState('Management Analysis')
+ const [tab,setTab]=useState('Management Summary')
  const [asOf,setAsOf]=useState(todayMY)
  const [periodFrom,setPeriodFrom]=useState(()=>`${todayMY().slice(0,4)}-01-01`)
  const validDate=/^\d{4}-\d{2}-\d{2}$/.test(asOf)
@@ -42,6 +40,14 @@ export function Reports(){
  const rows=state.documents.filter(d=>d.status==='approved'&&d.date<=asOf&&d.currency===currency).map(d=>({reference:d.reference,type:d.kind,party:d.party,date:d.date,currency:d.currency,amount:major(d.amount),open_amount:major(openAmount(state,d.id,asOf))}))
  const detail=generalLedgerDetail(state,asOf,currency)
  const exportLedger=()=>downloadCsv(`general-ledger-${client.id}-${currency}-${asOf}.csv`,detail.map(r=>({...r,debit:decimal(r.debit),credit:decimal(r.credit)})))
+ const management=[
+  {metric:'Receivables',value:decimal(totals.receivables),currency,as_of:asOf},
+  {metric:'Payables',value:decimal(totals.payables),currency,as_of:asOf},
+  {metric:'Unallocated collections',value:decimal(totals.unallocatedReceipts),currency,as_of:asOf},
+  {metric:'Unallocated supplier payments',value:decimal(totals.unallocatedPayments),currency,as_of:asOf},
+  {metric:'Pending reviews',value:String(state.cases.filter(c=>c.status==='pending').length+totals.pending),currency:'',as_of:asOf},
+  {metric:'Unresolved goods claims',value:String(totals.disputes),currency:'',as_of:asOf}
+ ]
  const exportProfit=()=>{
   if(!profit)return
   const period={from:periodFrom,through:asOf,currency}
@@ -66,19 +72,14 @@ export function Reports(){
  }
  const journalBadge=<Badge tone={readiness.completeForRecordedSources?'success':'warning'}>{readiness.completeForRecordedSources?'Internal draft · coverage checked':'Partial ledger · review needed'}</Badge>
  return <div className="page-stack reports-page">
-  <section className="page-intro page-intro--compact"><div><span className="eyebrow">Source-linked reporting</span><h2>Financial reports</h2><p>Review recorded sources and prepare analysis for {client.name}.</p></div><div className="page-actions">
-   <button className="button button--secondary" disabled={!detail.length} onClick={exportLedger}><Download size={16}/>Export GL detail CSV</button>
-   <button className="button button--primary" disabled={!rows.length} onClick={()=>downloadCsv('approved-source-records.csv',rows)}><Download size={16}/>Export source CSV</button>
-  </div></section>
+  <section className="page-intro page-intro--compact"><div><span className="eyebrow">Source-linked reporting</span><h2>Financial reports</h2><p>Select one report to view its figures and export its CSV for {client.name}.</p></div></section>
   <div className="report-controls"><div className="report-tabs">{tabs.map(t=><button className={tab===t?'active':''} key={t} onClick={()=>setTab(t)}>{t}</button>)}</div>
    {tab==='Profit & Loss'&&<label><span>Period from</span><input type="date" value={periodFrom} max={asOf} onChange={e=>setPeriodFrom(e.target.value)}/></label>}
    <label><span>As of</span><input type="date" value={asOf} onChange={e=>setAsOf(e.target.value)}/></label>
   </div>
 
-  {tab==='Management Analysis'?<div className="analysis-stack"><section className="kpi-grid">{[{label:`${currency} receivables`,value:money(totals.receivables/100,false,currency)},{label:`${currency} payables`,value:money(totals.payables/100,false,currency)},{label:`${currency} unallocated collections`,value:money(totals.unallocatedReceipts/100,false,currency)},{label:`${currency} unallocated supplier payments`,value:money(totals.unallocatedPayments/100,false,currency)},{label:'Pending reviews',value:String(state.cases.filter(c=>c.status==='pending').length+totals.pending)},{label:'Unresolved goods claims',value:String(totals.disputes)}].map(k=><div className="kpi-card" key={k.label}><div><span>{k.label}</span></div><strong>{k.value}</strong><small>Recorded operational data</small></div>)}</section>
-   <section className="panel variance-panel"><div className="panel__header"><div><span className="eyebrow">Supporting records</span><h3>Approved source documents</h3></div><Badge tone="neutral">Currencies kept separate</Badge></div><div className="variance-table"><div><span>Reference</span><span>Party</span><span>Currency</span><span>Amount</span><span>Open / available</span></div>{rows.map((r,i)=><div key={r.reference+i}><strong>{r.reference}</strong><span>{r.party}</span><span>{r.currency}</span><span>{r.amount}</span><span>{['sales-invoice','purchase-invoice','customer-receipt','supplier-payment','employee-claim','employee-reimbursement'].includes(r.type)?r.open_amount:'—'}</span></div>)}</div>{!rows.length&&<p style={{padding:20}}>No approved source documents for this date.</p>}</section>
-   <ControlReconciliation key={activeClientId} asOf={asOf} currency={currency}/>
-   <MonthEndClosePanel key={`close-${activeClientId}`} currency={currency} companyId={activeClientId}/>
+  {tab==='Management Summary'?<div className="analysis-stack"><section className="kpi-grid">{[{label:`${currency} receivables`,value:money(totals.receivables/100,false,currency)},{label:`${currency} payables`,value:money(totals.payables/100,false,currency)},{label:`${currency} unallocated collections`,value:money(totals.unallocatedReceipts/100,false,currency)},{label:`${currency} unallocated supplier payments`,value:money(totals.unallocatedPayments/100,false,currency)},{label:'Pending reviews',value:String(state.cases.filter(c=>c.status==='pending').length+totals.pending)},{label:'Unresolved goods claims',value:String(totals.disputes)}].map(k=><div className="kpi-card" key={k.label}><div><span>{k.label}</span></div><strong>{k.value}</strong><small>Recorded operational data</small></div>)}</section>
+   <section className="panel variance-panel"><div className="panel__header"><div><span className="eyebrow">Supporting records</span><h3>Approved source documents</h3></div><button className="button button--secondary" onClick={()=>downloadCsv(`management-summary-${client.id}-${currency}-${asOf}.csv`,management)}><Download size={16}/>Export summary CSV</button></div><div className="variance-table"><div><span>Reference</span><span>Party</span><span>Currency</span><span>Amount</span><span>Open / available</span></div>{rows.map((r,i)=><div key={r.reference+i}><strong>{r.reference}</strong><span>{r.party}</span><span>{r.currency}</span><span>{r.amount}</span><span>{['sales-invoice','purchase-invoice','customer-receipt','supplier-payment','employee-claim','employee-reimbursement'].includes(r.type)?r.open_amount:'—'}</span></div>)}</div>{!rows.length&&<p style={{padding:20}}>No approved source documents for this date.</p>}</section>
   </div>:
   tab==='Trial Balance'&&tb.journalCount>0?<section className="panel statement-panel"><div className="statement-title"><div><span className="eyebrow">Reviewed internal journal entries · {currency}</span><h2>Trial Balance</h2></div>{journalBadge}</div><ReadinessNote readiness={readiness}/><div className="variance-table"><div><span>GL code</span><span>Account</span><span>Type</span><span>Debit ({currency})</span><span>Credit ({currency})</span></div>{tb.rows.map(r=><div key={r.code}><strong>{r.code}</strong><span>{r.name}</span><span>{r.type}</span><span>{decimal(r.debit)}</span><span>{decimal(r.credit)}</span></div>)}<div><strong>Totals</strong><span>—</span><span>—</span><strong>{decimal(tb.debitTotal)}</strong><strong>{decimal(tb.creditTotal)}</strong></div></div><div style={{padding:20}}><button className="button button--secondary" onClick={()=>downloadCsv(`trial-balance-${client.id}-${asOf}.csv`,tb.rows.map(r=>({code:r.code,account:r.name,type:r.type,currency,debit:decimal(r.debit),credit:decimal(r.credit)})))}><Download size={16}/>Export trial balance CSV</button></div></section>:
   tab==='Profit & Loss' && !profit?<section className="panel statement-panel"><div className="statement-title"><h2>Profit &amp; Loss</h2><Badge tone="warning">Invalid period</Badge></div><p style={{padding:24}}>Select a valid period start that is no later than the reporting date.</p></section>:
@@ -109,6 +110,10 @@ export function Reports(){
    </div><p style={{padding:'12px 24px',lineHeight:1.6}}>{balance.balanced?'Debits and credits agree mathematically.':'Assets do not equal liabilities and equity; investigate journal integrity.'} Mathematical agreement alone does not establish completeness.</p>
    <div style={{padding:20}}><button className="button button--secondary" onClick={exportBalance}><Download size={16}/>Export balance sheet CSV</button></div>
   </section>:
-  <section className="panel statement-panel"><div className="statement-title"><div><span className="eyebrow">Ledger source required</span><h2>{tab}</h2></div><Badge tone="warning">Not generated</Badge></div><p style={{padding:24,lineHeight:1.7}}>{tab==='Cash Flow'?'The approved chart and journals do not yet classify cash movements as operating, investing or financing. Bank records and opening/closing cash accounts must be reconciled before a reliable cash flow statement can be prepared.':'No approved journals exist for the reporting date. Complete client setup, approve source documents and post their reviewed journal entries first.'} This screen will not invent missing financial figures.</p></section>}
+  tab==='General Ledger'?<section className="panel statement-panel"><div className="statement-title"><div><span className="eyebrow">Approved journal lines · through {asOf} · {currency}</span><h2>General Ledger</h2></div>{journalBadge}</div><ReadinessNote readiness={readiness}/>
+   <div className="variance-table"><div><span>Date</span><span>Journal</span><span>Account</span><span>Debit ({currency})</span><span>Credit ({currency})</span></div>{detail.map(r=><div key={`${r.journal}-${r.line}`}><span>{r.date}</span><strong>{r.journal}</strong><span>{r.accountCode} · {r.accountName}</span><span>{decimal(r.debit)}</span><span>{decimal(r.credit)}</span></div>)}</div>{!detail.length&&<p style={{padding:24}}>No approved journal lines exist for this reporting date.</p>}
+   <div style={{padding:20}}><button className="button button--secondary" disabled={!detail.length} onClick={exportLedger}><Download size={16}/>Export general ledger CSV</button></div>
+  </section>:
+  <section className="panel statement-panel"><div className="statement-title"><div><span className="eyebrow">Ledger source required</span><h2>{tab}</h2></div><Badge tone="warning">Not generated</Badge></div><p style={{padding:24,lineHeight:1.7}}>No approved journals exist for the reporting date. Upload the client records, approve source documents and post their reviewed journal entries first. This screen will not invent missing financial figures.</p></section>}
  </div>
 }
