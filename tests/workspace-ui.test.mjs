@@ -28,7 +28,7 @@ test('workspace: upload → AI proposal → review corrections → reports/audit
  try{
   await act(async()=>root.render(React.createElement(AuthProvider,null,React.createElement(App))));await flush()
   await click(button('Workflow workspace'))
-  assert.equal(document.querySelectorAll('.workflow-list>button').length,4)
+  assert.equal(document.querySelectorAll('.workflow-list>button').length,5)
   assert.ok(document.querySelector('.drop-zone'));assert.ok(document.querySelector('.composer input'));assert.ok(document.querySelector('.session-panel'))
   assert.ok(!document.body.textContent.includes('Stage a document'));assert.ok(!document.body.textContent.includes('SST & e-Invoice admin'))
   const input=document.querySelector('input[type=file]');Object.defineProperty(input,'files',{value:[new File(['invoice text'],'invoice.pdf',{type:'application/pdf'})],configurable:true})

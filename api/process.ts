@@ -5,7 +5,7 @@ import {authorise} from '../server/bookkeeping-auth'
 import {askJson} from '../server/ai'
 import {allowedCaseActions,validateCaseActions} from '../src/bookkeeping/cases.mjs'
 import {parseChart} from '../src/bookkeeping/ledger.mjs'
-const taskFiles:Record<string,string>={receipt:'receipt',invoice:'invoice','bank-reconciliation':'bank-reconciliation',reporting:'reporting'}
+const taskFiles:Record<string,string>={receipt:'receipt',invoice:'invoice','purchase-expenses':'purchase-expenses','sales-collections':'sales-collections','claims-petty-cash':'claims-petty-cash','payroll-inputs':'payroll-inputs','bank-reconciliation':'bank-reconciliation',reporting:'reporting'}
 const contract=`You are the bookkeeping assistant inside the user's existing drag-and-drop/chat workspace. Keep transaction subtypes internal and send changes to the Review Queue. Never instruct the user to navigate 16 new workflows.
 Return {message:string,extracted_fields:object,confidence:number|null,warnings:string[],missing_evidence:string[],blocked:boolean,actions:[{type:string,payload:object}]}.
 Explain the evidence, actual balance, proposed action and questions in plain language. If facts needed for an action are unknown, ask focused questions, return no unsupported actions, and set blocked true. Do not invent missing references, dates, opening balances, identities or tax rates. Do not claim an external system was queried or posted. No e-Invoice processing.
@@ -25,7 +25,7 @@ export default async function handler(req:VercelRequest,res:VercelResponse){
   if(typeof task!=='string'||!Object.hasOwn(taskFiles,task)||typeof companyId!=='string'||JSON.stringify({ocrData,conversation}).length>220000)return res.status(400).json({error:'Choose an existing workflow, company and supported input.'})
   const {userDb}=await authorise(req,companyId);const {data,error}=await userDb.from('bookkeeping_workspaces').select('state').eq('company_id',companyId).maybeSingle();if(error)throw error
   const state=data?.state,context=state?.contexts
-  if(!context||['profile','vendors','glCodes','policies'].some(k=>!context[k]?.trim()))return res.status(422).json({error:'Use Client configuration → Configure with AI to review and save the four company context files first. Use explicit unknown/none notes instead of guessing.'})
+  if(!context||['profile','vendors','glCodes','policies'].some(k=>!context[k]?.trim()))return res.status(422).json({error:'Upload the company setup records in Client configuration before processing transactions. The internal company context is incomplete.'})
   if((state.documents?.length||0)>1500||(state.allocations?.length||0)>3000)return res.status(422).json({error:'This workspace needs scoped ledger retrieval before reliable AI analysis. No partial balance check was performed.'})
   const [common,reference,decisions]=await Promise.all(['common',taskFiles[task],'case-decisions'].map(name=>readFile(join(process.cwd(),`workflow/references/${name}.md`),'utf8')))
   const reviewedChart=[...parseChart(context.glCodes).values()].filter(a=>a.active).map(({code,name,type})=>({code,name,type}));

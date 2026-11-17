@@ -1,9 +1,9 @@
 import type { Activity, AuditEvent, Client, GlCode, LedgerRecord, ReviewItem, VendorRule } from '../types'
 
 export const clients: Client[] = [
-  { id: 'suria', name: 'Suria Retail Sdn Bhd', shortName: 'SR', color: '#e9a23b', status: 'connected', currency: 'MYR', taxRegime: 'SST', entityNumber: '202001018842' },
-  { id: 'kl-logistics', name: 'KL Logistics Sdn Bhd', shortName: 'KL', color: '#6ca59a', status: 'connected', currency: 'MYR', taxRegime: 'SST', entityNumber: '201804009221' },
-  { id: 'nadi', name: 'Nadi Creative Studio', shortName: 'NC', color: '#d37a65', status: 'attention', currency: 'MYR', taxRegime: 'Exempt', entityNumber: '202204012670' },
+  { id: 'suria', name: 'Suria Retail Sdn Bhd', shortName: 'SR', color: '#e9a23b', status: 'connected', currency: 'MYR', taxRegime: 'SST', entityNumber: '202001018842', closeSchedule:{financialYearEnd:'31 December',firstPeriod:'2026-11',bookCloseDay:10,cutOffRule:'Include documents dated through the final calendar day',reminderTiming:'7 days before, 3 days before and on close day',lateEntryRule:'Hold for the next open period unless reopening is approved'} },
+  { id: 'kl-logistics', name: 'KL Logistics Sdn Bhd', shortName: 'KL', color: '#6ca59a', status: 'connected', currency: 'MYR', taxRegime: 'SST', entityNumber: '201804009221', closeSchedule:{financialYearEnd:'31 December',firstPeriod:'2026-11',bookCloseDay:10,cutOffRule:'Include documents dated through the final calendar day',reminderTiming:'7 days before, 3 days before and on close day',lateEntryRule:'Hold for the next open period unless reopening is approved'} },
+  { id: 'nadi', name: 'Nadi Creative Studio', shortName: 'NC', color: '#d37a65', status: 'attention', currency: 'MYR', taxRegime: 'Exempt', entityNumber: '202204012670', closeSchedule:{financialYearEnd:'31 December',firstPeriod:'2026-11',bookCloseDay:10,cutOffRule:'Include documents dated through the final calendar day',reminderTiming:'7 days before, 3 days before and on close day',lateEntryRule:'Hold for the next open period unless reopening is approved'} },
 ]
 
 export const initialRecords: LedgerRecord[] = [

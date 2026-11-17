@@ -153,6 +153,7 @@ h3 { font-size: 16px; }
 .mini-empty { min-height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--muted); }
 .mini-empty strong { margin: 8px 0 3px; color: var(--ink); font-size: 12px; }
 .mini-empty span { font-size: 10px; }
+.close-dashboard-panel{overflow:hidden}.close-dashboard-header{align-items:center}.close-dashboard-grid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(280px,.8fr);border-top:1px solid var(--line)}.ai-close-checklist{padding:18px 20px}.ai-close-checklist__intro{display:flex;align-items:center;gap:10px;margin-bottom:12px}.ai-close-checklist__intro>span{width:34px;height:34px;display:grid;place-items:center;color:#fff;background:var(--forest);border-radius:9px}.ai-close-checklist__intro strong,.ai-close-checklist__intro small{display:block}.ai-close-checklist__intro strong{font-size:11px}.ai-close-checklist__intro small{margin-top:3px;color:var(--muted);font-size:9px}.ai-close-checklist__items{display:grid;grid-template-columns:1fr 1fr;gap:7px 12px}.ai-close-checklist__items>div{display:grid;grid-template-columns:27px 1fr;gap:8px;align-items:center;padding:9px;background:var(--canvas);border:1px solid #e5e8e3;border-radius:8px}.ai-close-checklist__items>div:last-child{grid-column:1 / -1}.ai-close-checklist__items>div>span{width:27px;height:27px;display:grid;place-items:center;border-radius:7px}.ai-close-checklist__items>div>span.done{color:#33715a;background:#dfeee6}.ai-close-checklist__items>div>span.pending{color:#96631f;background:var(--amber-soft)}.ai-close-checklist__items strong,.ai-close-checklist__items small{display:block}.ai-close-checklist__items strong{font-size:10px}.ai-close-checklist__items small{margin-top:2px;color:var(--muted);font-size:8px;line-height:1.4}.management-analysis-card{padding:22px;border-left:1px solid var(--line);background:#f7f6f1}.management-analysis-card__icon{width:42px;height:42px;display:grid;place-items:center;margin-bottom:16px;color:#fff;background:var(--forest);border-radius:11px}.management-analysis-card h3{margin:5px 0 7px;font-family:'Newsreader',serif;font-size:21px}.management-analysis-card p{min-height:42px;color:var(--muted);font-size:10px;line-height:1.6}.management-analysis-card .button{margin-top:15px}
 
 /* Workflow workspace */
 .workspace { height: 100%; display: grid; grid-template-columns: 205px minmax(430px, 1fr) 240px; background: #edeee9; }
@@ -358,6 +359,7 @@ label textarea { min-height: 110px; resize: vertical; }
 .config-upload-item__info { flex: 1; min-width: 0; }
 .config-upload-item__info strong { display: block; font-size: 14px; margin-bottom: 2px; }
 .config-upload-item__info span { font-size: 12px; color: var(--muted); }
+.close-settings-card{overflow:hidden}.close-settings-title{display:flex;align-items:center;gap:12px}.close-settings-grid{display:grid;grid-template-columns:repeat(2,1fr);border-top:1px solid var(--line)}.close-settings-grid>div{min-height:84px;padding:17px 20px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}.close-settings-grid>div:nth-child(2n){border-right:0}.close-settings-grid>div:nth-last-child(-n+2){border-bottom:0}.close-settings-grid span,.close-settings-grid strong{display:block}.close-settings-grid span{margin-bottom:7px;color:var(--muted);font-size:9px;font-weight:750;text-transform:uppercase;letter-spacing:.05em}.close-settings-grid strong{font-size:12px;line-height:1.5}
 
 .config-summary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
 .config-card { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 16px; transition: all 0.2s; }
@@ -434,11 +436,13 @@ label textarea { min-height: 110px; resize: vertical; }
 
 @media (max-width: 900px) {
   .config-summary-grid { grid-template-columns: 1fr; }
+  .close-dashboard-grid{grid-template-columns:1fr}.management-analysis-card{border-left:0;border-top:1px solid var(--line)}
 }
 
 @media (max-width: 620px) {
   .config-chat-modal { width: 100%; max-height: 100vh; }
   .config-chat-message__content { max-width: 85%; }
+  .ai-close-checklist__items,.close-settings-grid{grid-template-columns:1fr}.ai-close-checklist__items>div:last-child{grid-column:auto}.close-settings-grid>div,.close-settings-grid>div:nth-child(2n){border-right:0;border-bottom:1px solid var(--line)}.close-settings-grid>div:last-child{border-bottom:0}
 }
 
 /* Small additions to the original BookAI layout. */

@@ -10,14 +10,14 @@ import { Reports } from './pages/Reports'
 import { ReviewQueue } from './pages/ReviewQueue'
 import { AuditLog } from './pages/AuditLog'
 import { Configuration } from './pages/Configuration'
-import type { PageId, WorkflowId } from './types'
+import type { PageId, WorkflowModeId } from './types'
 import { Loader2 } from 'lucide-react'
 
 function BookAIApp() {
   const { user, loading, signOut } = useAuth()
   const book=useBookkeeping()
   const [page, setPage] = useState<PageId>('dashboard')
-  const [workflow, setWorkflow] = useState<WorkflowId>('invoice')
+  const [workflow, setWorkflow] = useState<WorkflowModeId>('purchase-expenses')
 
   if (!localMode && loading) {
     return (
@@ -65,14 +65,14 @@ function BookAIApp() {
     )
   }
 
-  const startWorkflow = (next: WorkflowId) => {
+  const startWorkflow = (next: WorkflowModeId) => {
     setWorkflow(next)
     setPage('workspace')
   }
 
   const renderPage = () => {
     switch (page) {
-      case 'workspace': return <Workspace key={workflow+book.activeClientId} workflow={workflow} setWorkflow={setWorkflow} openReports={() => setPage('reports')} />
+      case 'workspace': return <Workspace key={workflow+book.activeClientId} workflow={workflow} setWorkflow={setWorkflow} />
       case 'reports': return <Reports />
       case 'review': return <ReviewQueue />
       case 'audit': return <AuditLog />

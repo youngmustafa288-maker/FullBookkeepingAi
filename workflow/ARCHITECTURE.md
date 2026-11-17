@@ -1,6 +1,6 @@
 # Original AI workspace with stronger internal skills
 
-The original four workflow choices remain: receipt/SST review, invoice/monthly accounts, bank reconciliation and management analysis. Each uses drag-and-drop input and a persistent on-screen AI composer. Transaction subtypes are handled internally by skills; no sixteen-task menu or manual-form-first workspace is exposed.
+The workspace presents five document workflows: Purchase & Expenses, Sales & Collections, Claims & Petty Cash, Payroll Inputs and Bank Reconciliation. Each uses drag-and-drop input and a persistent on-screen AI composer. Management Analysis is surfaced from the dashboard and Reports rather than as a document-upload workflow.
 
 The server authenticates the selected company, loads common controls, the selected family guide, case decisions and saved client context. It supplies actual existing documents, allocations, claims and bank records to the model. AI returns a conversational answer and proposed actions. Proposals are staged into the existing review queue, never approved by the model.
 

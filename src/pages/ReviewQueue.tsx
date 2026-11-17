@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, ArrowUpDown, Check, Clock3, Download, FileText, Fuel, Landmark, PackageOpen, ReceiptText, WalletCards } from 'lucide-react'
+import { AlertTriangle, ArrowUpDown, Check, Clock3, Download, FileText, Fuel, HandCoins, Landmark, PackageOpen, ReceiptText, ShoppingCart, UsersRound, WalletCards } from 'lucide-react'
 
 import { useApp } from '../context/AppContext'
 import { money, mytDate, relativeQueueAge } from '../lib/format'
@@ -10,10 +10,23 @@ import { EmptyState } from '../components/EmptyState'
 
 function documentIcon(item: ReviewItem) {
   if (item.workflow === 'bank-reconciliation') return Landmark
+  if(item.workflow==='sales-collections')return WalletCards
+  if(item.workflow==='claims-petty-cash')return HandCoins
+  if(item.workflow==='payroll-inputs')return UsersRound
+  if(item.workflow==='purchase-expenses')return ShoppingCart
   if (/shell|petronas|fuel|diesel/i.test(item.party)) return Fuel
   if (/office|stationery|supplies/i.test(item.party)) return PackageOpen
   return item.workflow === 'invoice' ? WalletCards : ReceiptText
 }
+const workflowLabel=(workflow:ReviewItem['workflow'])=>({
+ 'purchase-expenses':'Purchase',
+ 'sales-collections':'Sales',
+ 'claims-petty-cash':'Claims',
+ 'payroll-inputs':'Payroll',
+ 'bank-reconciliation':'Bank',
+ receipt:'Receipt',
+ invoice:'Invoice'
+}[workflow]||'Workflow')
 
 export function ReviewQueue() {
   const { clients, activeClientId, reviews, approveReview, rejectReview } = useApp()
@@ -89,9 +102,13 @@ export function ReviewQueue() {
           <span>Workflow</span>
           <select value={workflowFilter} onChange={(event) => setWorkflowFilter(event.target.value)}>
             <option value="all">All workflows</option>
-            <option value="receipt">Receipts / SST review</option>
-            <option value="invoice">Invoices / monthly accounts</option>
+            <option value="purchase-expenses">Purchase &amp; Expenses</option>
+            <option value="sales-collections">Sales &amp; Collections</option>
+            <option value="claims-petty-cash">Claims &amp; Petty Cash</option>
+            <option value="payroll-inputs">Payroll Inputs</option>
             <option value="bank-reconciliation">Bank Reconciliation</option>
+            <option value="receipt">Legacy receipt cases</option>
+            <option value="invoice">Legacy invoice cases</option>
           </select>
         </label>
         <label>
@@ -121,7 +138,7 @@ export function ReviewQueue() {
                 <div className="queue-card__document">
                   <span className="queue-card__icon" aria-label={`${item.party} document type`}><DocumentIcon size={17} strokeWidth={1.8} /></span>
                   <div>
-                    <span>{item.workflow === 'receipt' ? 'SST' : item.workflow === 'invoice' ? 'Monthly' : 'Bank'}</span>
+                    <span>{workflowLabel(item.workflow)}</span>
                     <strong>{item.party}</strong>
                     <small><FileText size={12} />{item.reference} · {mytDate(item.date)}</small>
                   </div>

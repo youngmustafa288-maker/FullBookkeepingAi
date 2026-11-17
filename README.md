@@ -2,7 +2,7 @@
 
 Current cumulative source release: **`bookai-step8-release-gates`** (available at `/version.json` after deployment). Historical step-by-step change notes are retained below.
 
-This revision restores the original drag-and-drop workspace, AI chat composer, client summary, Review Queue, side-by-side review drawer, Accounts table, Audit Log and AI Client Configuration. The original four workflow choices remain. The sixteen bookkeeping subtask guides are internal references; they are not sixteen workflow buttons or manual transaction screens. E-Invoice integration is excluded.
+The drag-and-drop workspace now separates five complete document workflows: Purchase & Expenses, Sales & Collections, Claims & Petty Cash, Payroll Inputs and Bank Reconciliation. Management Analysis is available from the dashboard and Reports. Review Queue, side-by-side evidence review, Audit Log and upload-only Client Configuration remain available. E-Invoice integration is excluded.
 
 ## What changed
 
@@ -68,7 +68,7 @@ A one-time client setup checklist and reviewer-controlled CSV/XLSX opening trial
 
 AI prompts now receive the saved **active** chart-of-accounts entries explicitly and are directed to propose an evidence-backed debit/credit journal after a corresponding source document when the accounting treatment is supportable. This remains an untrusted draft until review. The review drawer now permits a bookkeeper to correct journal references, dates, currency, evidence, explanations, accounts and individual debit/credit lines within the existing layout. A deterministic preflight uses the same validation as actual posting; unmatched source dates/amounts, inactive GL codes, unbalanced entries and duplicate posting remain blocked.
 
-Journal approval requires explicit full-review acknowledgement; flagged exceptions require a documented reviewer resolution. A correction invalidates a previous GL sign-off, and audit events retain reviewer changes. Private uploaded source links cannot be silently replaced by editing the proposal. The original four workflow tabs, sidebar, global CSS, fonts and overall design remain unchanged.
+Journal approval requires explicit full-review acknowledgement; flagged exceptions require a documented reviewer resolution. A correction invalidates a previous GL sign-off, and audit events retain reviewer changes. Private uploaded source links cannot be silently replaced by editing the proposal. The five document workflow tabs retain the existing workspace, sidebar, typography and overall visual design.
 
 See [`STEP3_IMPLEMENTATION.md`](STEP3_IMPLEMENTATION.md) for detailed instructions, limits and tests. The source package is **not deployed**. Prior release descriptions above are retained as implementation history, not the current verification status.
 
@@ -77,7 +77,7 @@ See [`STEP3_IMPLEMENTATION.md`](STEP3_IMPLEMENTATION.md) for detailed instructio
 - Existing Accounts screen now includes reviewed customer/supplier aging, dated open balances, unallocated receipts/payments, CSV schedules and controlled payment allocation.
 - Existing Bank Reconciliation workflow now includes human-confirmed statement matches, exact/manual exception review, cashbook CSV, saved statement closing totals and bank-to-GL difference status.
 - Existing Management Analysis screen shows receivable/payable subledger vs mapped approved GL control accounts. Incomplete source/journal coverage is never labelled balanced.
-- No changes to the original styling, four workflow tabs, sidebar or document chat layout.
+- The existing styling, sidebar and document chat layout are retained while the workspace is separated into five document workflows.
 - See `STEP4_IMPLEMENTATION.md` for instructions, tests, important limitations and safe install process. This is **not a deployed release**.
 
 
@@ -88,7 +88,7 @@ The existing **Reports** screen can now calculate a date-filtered trial balance,
 
 ## Step 6: month-end close, period locks, review checklist (current cumulative source release)
 
-The existing **Reports → Management Analysis** screen now includes an additional **Month-end review & period lock** section using existing cards, badges and buttons. No global CSS, navigation, sidebar, typography, colors or four workflow tabs were changed. The review checklist evaluates recorded data in every encountered currency, enforces completed calendar months and sequential month-end closes, checks opening journals, approved source-to-GL coverage, financial equation, mapped AR/AP GL controls, imported bank statement reconciliations, unmatched bank rows/cash movements, open cases and unresolved goods claims. Warning-only items (missing optional control schedules without activity and missing recorded bank evidence when no bank accounts are mapped) explicitly require human investigation, not an automatic certification.
+Management Analysis is linked from the dashboard month-end panel and remains available in Reports. The close controls evaluate recorded data in every encountered currency, enforce completed calendar months and sequential month-end closes, and check opening journals, approved source-to-GL coverage, the financial equation, mapped AR/AP controls, bank reconciliations, open cases and unresolved goods claims. Warning-only items explicitly require human investigation, not an automatic certification.
 
 Two separate review confirmations and a reference are needed to close. The core action also re-evaluates those checks on the server, not only in the browser. `closedThrough` blocks backdated journal and operational changes, with GL chart/policy and control mappings protected while a close is active. The latest close may be reopened with a documented reason, preserving recorded close/reopen history and the prior lock date. Export the close checklist as CSV; review all items before closing.
 
@@ -102,4 +102,4 @@ The authenticated bookkeeping API now treats company/workspace database read fai
 
 ## Incremental upgrade — Step 8: deployment verification (source package only)
 
-Step 8 adds a fail-closed saved workspace state guard, offline release preflight, GitHub CI configuration for a full `npm ci` + tests + Vite build + server type-check, and a non-destructive staging HTTP smoke script. **85 deterministic tests passed** in the supplied environment; full browser/production builds and integrations remain unverified and were not deployed. Global CSS, shell, app navigation and four workflow tabs are unchanged. See [`STEP8_DEPLOYMENT_READINESS.md`](STEP8_DEPLOYMENT_READINESS.md) for exact commands, blockers and staging checklist.
+Step 8 adds a fail-closed saved workspace state guard, offline release preflight, GitHub CI configuration for a full `npm ci` + tests + Vite build + server type-check, and a non-destructive staging HTTP smoke script. See [`STEP8_DEPLOYMENT_READINESS.md`](STEP8_DEPLOYMENT_READINESS.md) for exact commands, blockers and staging checklist.

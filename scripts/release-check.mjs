@@ -56,7 +56,7 @@ try{
 
 try{
   const meta=json('public/version.json')
-  ensure(meta.workflow_menu_count===4&&meta.four_workflows_unchanged===true&&meta.e_invoicing===false,'Release manifest retains four workflows and excludes e-Invoicing.','The release manifest conflicts with original workflow constraints.')
+  ensure(meta.workflow_menu_count===5&&meta.five_document_workflows===true&&meta.e_invoicing===false,'Release manifest retains five document workflows and excludes e-Invoicing.','The release manifest conflicts with the approved workflow menu.')
   ensure(meta.deployment_status==='source_only_not_deployed','Release manifest does not falsely claim live deployment.','The release manifest must not assert a deployment that has not happened.')
 } catch(e){fail('Could not check release manifest: '+e.message)}
 

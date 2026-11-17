@@ -7,6 +7,8 @@ export type PageId =
   | 'configuration'
 
 export type WorkflowId = 'receipt' | 'invoice' | 'bank-reconciliation' | 'reporting'
+  | 'purchase-expenses' | 'sales-collections' | 'claims-petty-cash' | 'payroll-inputs'
+export type WorkflowModeId = 'purchase-expenses' | 'sales-collections' | 'claims-petty-cash' | 'payroll-inputs' | 'bank-reconciliation'
 export type RecordType = 'Purchase Invoice' | 'Sales Invoice' | 'Receipt' | 'Bank Recon' | 'Customer Receipt' | 'Supplier Payment' | 'Employee Claim' | 'Reimbursement' | 'Sales Credit' | 'Supplier Credit' | 'Customer Refund' | 'Supplier Refund' | 'Other Transaction'
 export type RecordStatus = 'Paid' | 'Pending' | 'Overdue' | 'Draft' | 'Reconciled' | 'Partial' | 'Unallocated' | 'Approved'
 
@@ -19,6 +21,16 @@ export interface Client {
   currency: string
   taxRegime: 'SST' | 'Exempt'
   entityNumber: string
+  closeSchedule?: CloseSchedule
+}
+
+export interface CloseSchedule {
+  financialYearEnd: string
+  firstPeriod: string
+  bookCloseDay: number
+  cutOffRule: string
+  reminderTiming: string
+  lateEntryRule: string
 }
 
 export interface LedgerRecord {

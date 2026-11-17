@@ -1,8 +1,10 @@
 import {useRef,useState,type DragEvent} from 'react'
-import {AlertTriangle,CheckCircle2,Loader2,UploadCloud} from 'lucide-react'
+import {AlertTriangle,CalendarDays,CheckCircle2,Loader2,UploadCloud} from 'lucide-react'
 import {useApp} from '../context/AppContext'
 import {useBookkeeping} from '../bookkeeping/context'
 import {apiPost,fileToBase64} from '../lib/api'
+import {closeScheduleFor,closeWindow} from '../lib/closeSchedule'
+import {Badge} from '../components/Badge'
 
 type ConfigType='glCodes'|'vendors'|'policies'|'profile'
 const slots:ConfigType[]=['profile','glCodes','vendors','policies']
@@ -12,6 +14,8 @@ export function Configuration(){
  const {clients,activeClientId}=useApp()
  const {state,act,error}=useBookkeeping()
  const client=clients.find(c=>c.id===activeClientId)!
+ const schedule=closeScheduleFor(client)
+ const firstPeriod=closeWindow(schedule,null).periodLabel
  const [uploading,setUploading]=useState<Upload[]>([])
  const [problem,setProblem]=useState('')
  const [working,setWorking]=useState(false)
@@ -58,6 +62,17 @@ export function Configuration(){
   {(problem||error)&&<div className="notice notice--warning" role="alert"><AlertTriangle size={17}/><p>{problem||error}</p></div>}
   <section className="config-upload-section"><div className="config-dropzone" onDragOver={e=>e.preventDefault()} onDrop={(e:DragEvent<HTMLDivElement>)=>{e.preventDefault();void files(e.dataTransfer.files)}}><UploadCloud size={32}/><h3>Upload previous accounting records</h3><p>CSV, XLSX, PDF, images, Markdown or text · 3 MB per file · up to 20 files</p><button className="button button--primary" disabled={working} onClick={()=>fileRef.current?.click()}>Choose files</button><input ref={fileRef} type="file" multiple accept=".csv,.xlsx,.pdf,.jpg,.jpeg,.png,.md,.txt" hidden onChange={e=>e.target.files&&void files(e.target.files)}/></div>
    {uploading.length>0&&<div className="config-upload-status">{uploading.map((f,i)=><div className={`config-upload-item config-upload-item--${f.status}`} key={`${f.name}-${i}`}><div className="config-upload-item__icon">{f.status==='analyzing'?<Loader2 size={16} className="spin"/>:f.status==='done'?<CheckCircle2 size={16}/>:<AlertTriangle size={16}/>}</div><div className="config-upload-item__info"><strong>{f.name}</strong><span>{f.message||'Processing file…'}</span></div></div>)}</div>}
+  </section>
+  <section className="panel close-settings-card">
+   <div className="panel__header"><div className="close-settings-title"><span className="config-card__icon"><CalendarDays size={20}/></span><div><span className="eyebrow">Month-end timing</span><h3>Closing schedule</h3></div></div><Badge tone="neutral">Used on dashboard</Badge></div>
+   <div className="close-settings-grid">
+    <div><span>Financial year-end</span><strong>{schedule.financialYearEnd}</strong></div>
+    <div><span>First period in the tool</span><strong>{firstPeriod}</strong></div>
+    <div><span>Book close day</span><strong>{schedule.bookCloseDay}th of the following month</strong></div>
+    <div><span>Cut-off rule</span><strong>{schedule.cutOffRule}</strong></div>
+    <div><span>Reminder timing</span><strong>{schedule.reminderTiming}</strong></div>
+    <div><span>Late-entry rule</span><strong>{schedule.lateEntryRule}</strong></div>
+   </div>
   </section>
  </div>
 }
