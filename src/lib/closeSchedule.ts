@@ -9,7 +9,7 @@ export const defaultCloseSchedule:CloseSchedule={
  lateEntryRule:'Hold for the next open period unless reopening is approved'
 }
 
-export function closeScheduleFor(client:Client){return client.closeSchedule||defaultCloseSchedule}
+export function closeScheduleFor(client:Client,workspaceSchedule?:CloseSchedule|null){return workspaceSchedule||client.closeSchedule||defaultCloseSchedule}
 
 const monthAfter=(period:string)=>{const [year,month]=period.split('-').map(Number),date=new Date(Date.UTC(year,month,1));return `${date.getUTCFullYear()}-${String(date.getUTCMonth()+1).padStart(2,'0')}`}
 const malaysiaDate=(date:Date)=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kuala_Lumpur',year:'numeric',month:'2-digit',day:'2-digit'}).format(date)

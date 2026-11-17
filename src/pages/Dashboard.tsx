@@ -24,7 +24,7 @@ export function Dashboard({ navigate, startWorkflow }: { navigate: (page: PageId
   const receivables = clientRecords.filter((item) => item.type === 'Sales Invoice' && item.status !== 'Paid' && item.status !== 'Draft').filter(item=>!item.currency||item.currency==='MYR').reduce((sum, item) => sum + (item.outstanding??item.amount), 0)
   const overdue = clientRecords.filter((item) => item.status === 'Overdue').length
   const clientActivities = audit.filter(item=>item.clientId===activeClientId).slice(0,8).map(a=>({id:a.id,workflow:'invoice' as WorkflowId,description:`${a.action}: ${a.reference}`,status:a.action==='Submitted'?'Pending Approval':a.action,time:new Date(a.timestamp).toLocaleString('en-MY',{timeZone:'Asia/Kuala_Lumpur'})+' MYT'}))
-  const close=closeWindow(closeScheduleFor(client),state.closedThrough)
+  const close=closeWindow(closeScheduleFor(client,state.closeSchedule),state.closedThrough)
   const closeChecklist=[
     {label:'Purchase & expense records',detail:'Supplier invoices, receipts, utilities and credits uploaded',done:true},
     {label:'Sales & collection records',detail:'Sales invoices and settlement reports uploaded',done:true},

@@ -12,7 +12,7 @@ export function minor(value) {
   if (!Number.isSafeInteger(n)) throw Error('Amount is too large.'); return n;
 }
 export const major = n => (n/100).toFixed(2);
-export const newState = () => ({version:1,revision:0,cases:[],documents:[],allocations:[],reversals:[],goods:[],bankRows:[],bankStatements:[],matches:[],journals:[],controlAccounts:{customer:'',supplier:'',banks:{}},periodCloses:[],audit:[],contexts:{profile:'',vendors:'',glCodes:'',policies:''},closedThrough:null});
+export const newState = () => ({version:1,revision:0,cases:[],documents:[],allocations:[],reversals:[],goods:[],bankRows:[],bankStatements:[],matches:[],journals:[],controlAccounts:{customer:'',supplier:'',banks:{}},periodCloses:[],audit:[],contexts:{profile:'',vendors:'',glCodes:'',policies:''},closeSchedule:null,closedThrough:null});
 function assert(ok,msg) { if(!ok) throw Error(msg); }
 function date(value) { assert(/^\d{4}-\d{2}-\d{2}$/.test(value||'') && !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0,10)===value,'Use a valid YYYY-MM-DD date.'); return value; }
 function required(value,label) { assert(typeof value==='string' && value.trim().length>0 && value.length<=200,`${label} is required (maximum 200 characters).`); return value.trim(); }
@@ -42,11 +42,11 @@ export function summary(s,asOf='9999-12-31',currency='MYR') {
  return {receivables:total('sales-invoice'),payables:total('purchase-invoice'),unallocatedReceipts:total('customer-receipt'),unallocatedPayments:total('supplier-payment'),staffPayables:total('employee-claim'),unallocatedReimbursements:total('employee-reimbursement'),pending:s.documents.filter(d=>d.status==='pending').length,disputes:s.goods.filter(g=>!g.resolved && g.faulty>0).length,unmatched:s.bankRows.filter(r=>!s.matches.some(m=>m.bankId===r.id)).length};
 }
 export function applyAction(previous,action,actor='Bookkeeper',now=new Date().toISOString()) {
- let s=structuredClone(previous); s.reversals ||= []; s.cases ||= []; s.journals ||= []; s.bankStatements ||= []; s.controlAccounts ||= {customer:'',supplier:'',banks:{}}; s.periodCloses ||= []; const {type,payload:p={}}=action;
+ let s=structuredClone(previous); s.reversals ||= []; s.cases ||= []; s.journals ||= []; s.bankStatements ||= []; s.controlAccounts ||= {customer:'',supplier:'',banks:{}}; s.periodCloses ||= []; s.closeSchedule ??= null; const {type,payload:p={}}=action;
  const id=required(action.id,'Action ID');
  if(s.audit.some(e=>e.id===id)) return previous; // Stable action id reused on network retry.
  const effective=p.date || now.slice(0,10);
- if(!['context','reopen','close','reject','stage-case','edit-case','reject-case','control-map'].includes(type)) { date(effective); assert(!s.closedThrough||effective>s.closedThrough,'This period is closed. Reopen it with a reason first.'); }
+ if(!['context','close-schedule','reopen','close','reject','stage-case','edit-case','reject-case','control-map'].includes(type)) { date(effective); assert(!s.closedThrough||effective>s.closedThrough,'This period is closed. Reopen it with a reason first.'); }
  if(type==='stage-case') {
   const actions=validateCaseActions(p.actions||[]);
   const fields=p.fields&&typeof p.fields==='object'?p.fields:{};
@@ -214,6 +214,13 @@ export function applyAction(previous,action,actor='Bookkeeper',now=new Date().to
    for(const [account,code] of Object.entries(s.controlAccounts.banks))validateControlMapping(reviewState,'bank',code,account);
   }
   s.contexts[p.slot]=p.content;
+ } else if(type==='close-schedule') {
+  const schedule=p.schedule;
+  assert(schedule&&typeof schedule==='object'&&!Array.isArray(schedule),'Closing schedule is required.');
+  const clean=value=>required(value,'Schedule setting');
+  assert(/^\d{4}-(0[1-9]|1[0-2])$/.test(schedule.firstPeriod||''),'Use a valid first period in YYYY-MM format.');
+  assert(Number.isSafeInteger(schedule.bookCloseDay)&&schedule.bookCloseDay>=1&&schedule.bookCloseDay<=28,'Book close day must be between 1 and 28.');
+  s.closeSchedule={financialYearEnd:clean(schedule.financialYearEnd),firstPeriod:schedule.firstPeriod,bookCloseDay:schedule.bookCloseDay,cutOffRule:clean(schedule.cutOffRule),reminderTiming:clean(schedule.reminderTiming),lateEntryRule:clean(schedule.lateEntryRule)};
  } else if(type==='close') {
   date(p.date);required(p.reason,'Close review reference');
   assert(p.controlsReviewed===true,'Confirm you reviewed the recorded ledger, source completeness and control balances.');
